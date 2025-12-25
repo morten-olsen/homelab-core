@@ -1,0 +1,38 @@
+apiVersion: postgres.homelab.mortenolsen.pro/v1
+kind: PostgresDatabase
+metadata:
+  name: authentik-db
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  clusterRef:
+    name: postgres
+    namespace: "{{ .Release.Namespace }}"
+---
+
+apiVersion: authentik.homelab.mortenolsen.pro/v1alpha1
+kind: AuthentikServer
+metadata:
+  name: authentik
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  postgresHostSecretRef:
+    name: authentik-db-connection
+    namespace: "{{ .Release.Namespace }}"
+    key: host
+  postgresUserSecretRef:
+    name: authentik-db-connection
+    namespace: "{{ .Release.Namespace }}"
+    key: user
+  postgresNameSecretRef:
+    name: authentik-db-connection
+    namespace: "{{ .Release.Namespace }}"
+    key: database
+  postgresPasswordSecretRef:
+    name: authentik-db-connection
+    namespace: "{{ .Release.Namespace }}"
+    key: password
+  host: "auth.{{ .Values.domain }}"
+  tls:
+    enabled: true
+    secretName: wildcard-tls
+

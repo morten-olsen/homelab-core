@@ -1,0 +1,28 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: redis-operator
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: "{{ .Release.Namespace }}"
+    server: https://kubernetes.default.svc
+  project: "{{ .Values.project }}"
+  source:
+    repoURL: https://ot-container-kit.github.io/helm-charts/
+    targetRevision: 0.22.2
+    chart: redis-operator
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=true
+  info:
+    - name: "Documentation: "
+      value: "https://redis-operator.opstree.dev/"

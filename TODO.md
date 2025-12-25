@@ -1,0 +1,16 @@
+- Update postgres to use svc urls
+- Fix Nuclei scan to use service mesh urls (istio inject?)
+- Setup custom storage class with predictable file location of OpebEBS and make it default (remote local on kind?)
+- Add secret generator operator
+- Add istio ingress handling
+- Add cloudflare DNS operator
+- Add cloudflare tunnel operator
+- Add support of public and private gateways (?)
+- Add NATS with client provisioner operator
+- Add network policies to restrict cross namespace access
+- Add documentation
+- Add backup solution for persisted storage (and secrets?)
+- Add multiple storage class (local, shared?)
+- Add KEDA operator
+- Build homelab operator
+- Add bitwarden operator?

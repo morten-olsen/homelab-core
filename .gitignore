@@ -1,0 +1,29 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+/argo-password.txt
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.log
+
+# Kubernetes
+*.kubeconfig
+.kube/
+
+# Nix
+result
+result-*
+.direnv/
+
+# Dev container
+.devcontainer/.env
+/cloudflare-secret.yaml

@@ -1,0 +1,35 @@
+# This file is deprecated - use the Helm chart instead
+# See charts/app-of-apps/ for the Helm chart
+# To deploy: helm install app-of-apps ./charts/app-of-apps -f values.yaml -n argocd
+#
+# For backward compatibility, you can still use this file directly,
+# but the Helm chart is recommended for better configuration management.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: "{{ .Values.repoUrl }}"
+    targetRevision: "{{ .Values.revision }}"
+    path: charts/demo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        istio.io/rev: default
+        istio-injection: enabled
+

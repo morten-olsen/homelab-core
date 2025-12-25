@@ -1,0 +1,6 @@
+repoUrl: https://code.olsen.cloud/homelab/core.git
+targetRevision: main
+core:
+  project: core
+shared:
+  project: shared

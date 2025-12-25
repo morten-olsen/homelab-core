@@ -1,0 +1,68 @@
+{
+  "name": "Homelab Core",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+      "version": "latest",
+      "helm": "latest",
+      "minikube": "none"
+    },
+    "ghcr.io/devcontainers/features/git:1": {
+      "version": "latest"
+    }
+  },
+
+  "postCreateCommand": "bash -c 'curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64 && chmod +x ./kind && sudo mv ./kind /usr/local/bin/kind'",
+  
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "redhat.vscode-yaml",
+        "ms-vscode.makefile-tools",
+        "nix-community.nix-env-selector",
+        "jnoortheen.nix-ide"
+      ],
+      "settings": {
+        "files.eol": "\n",
+        "editor.formatOnSave": true,
+        "[yaml]": {
+          "editor.defaultFormatter": "redhat.vscode-yaml"
+        },
+        "[nix]": {
+          "editor.defaultFormatter": "jnoortheen.nix-ide"
+        }
+      }
+    }
+  },
+
+  "remoteUser": "vscode",
+  
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
+
+  "remoteEnv": {
+    "KUBECONFIG": "${containerWorkspaceFolder}/.kube/config"
+  },
+
+  "forwardPorts": [
+    30080,
+    30443
+  ],
+
+  "portsAttributes": {
+    "30080": {
+      "label": "ArgoCD HTTP",
+      "onAutoForward": "notify"
+    },
+    "30443": {
+      "label": "ArgoCD HTTPS",
+      "onAutoForward": "notify"
+    }
+  }
+}

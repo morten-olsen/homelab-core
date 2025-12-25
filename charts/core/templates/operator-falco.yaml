@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: falco-operator
+  namespace: argocd
+spec:
+  project: "{{ .Values.project }}"
+  source:
+    repoURL: https://falcosecurity.github.io/charts
+    targetRevision: 7.0.2
+    chart: falco
+    helm:
+      releaseName: falco
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: "{{ .Release.Namespace }}"
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

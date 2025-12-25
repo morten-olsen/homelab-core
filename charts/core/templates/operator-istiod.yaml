@@ -1,0 +1,50 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: istiod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: istio-system
+    server: https://kubernetes.default.svc
+  project: "{{ .Values.project }}"
+  source:
+    repoURL: https://istio-release.storage.googleapis.com/charts
+    targetRevision: 1.28.2
+    chart: istiod
+    helm:
+      values: |
+        meshConfig:
+          # Enable Ingress support - Istio will handle Kubernetes Ingress resources
+          # The gateway service is in the shared namespace (created by gateway chart)
+          # Format: namespace/service-name (required when gateway is in different namespace than istio-system)
+          ingressService: shared/istio-gateway
+          # Match gateway pods with label istio=gateway (matches Gateway CR selector)
+          # This tells Istio which gateway pods to use for ingress traffic
+          ingressSelector: gateway
+          # Enable DNS proxy to intercept DNS queries for mesh-internal hostnames
+          # This ensures Istio intercepts DNS queries before they reach public DNS
+          defaultConfig:
+            proxyMetadata:
+              # Enable DNS capture - Istio sidecar will intercept DNS queries
+              ISTIO_META_DNS_CAPTURE: "true"
+              # DNS auto allocate - automatically assign virtual IPs for ServiceEntry hosts
+              ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=true
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: istio-validator-istio-system
+      jqPathExpressions:
+        - .webhooks[]?.failurePolicy
+

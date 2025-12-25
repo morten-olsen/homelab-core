@@ -1,0 +1,11 @@
+project: core
+# cert-manager configuration
+certManager:
+  # DNS01 recursive nameservers for self-check
+  # Set to empty array to use default nameservers from /etc/resolv.conf
+  dns01RecursiveNameservers:
+    - "8.8.8.8:53"
+    - "1.1.1.1:53"
+  # Force cert-manager to only use recursive nameservers (not authoritative)
+  # This can cause DNS01 self-check to take longer due to caching
+  dns01RecursiveNameserversOnly: true

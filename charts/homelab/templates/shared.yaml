@@ -1,0 +1,52 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: "{{ .Values.shared.project }}"
+  namespace: argocd
+spec:
+  description: "Project for homelab apps"
+  sourceRepos:
+    - "*"
+  destinations:
+    - namespace: "*"
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+
+---
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shared
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: "{{ .Values.shared.project }}"
+  source:
+    repoURL: "{{ .Values.repoUrl }}"
+    targetRevision: "{{ .Values.revision }}"
+    path: charts/shared
+    helm:
+      values: |
+        project: "{{ .Values.shared.project }}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: shared
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        istio.io/rev: default
+        istio-injection: enabled
+
+

@@ -1,0 +1,30 @@
+---
+# Cloudflare DNS-01 ACME Issuer for cert-manager
+#
+# Prerequisites:
+# - The secret 'cloudflare-api-token' must exist in the same namespace
+#   See cloudflare-secret.example.yaml for an example of how to create it
+# - The secret 'cloudflare-dns-issuer-key' will be created automatically by cert-manager
+#
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: cloudflare-dns
+  namespace: "istio-ingress"
+spec:
+  acme:
+    {{- if eq .Values.acme "stage" }}
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    {{- else }}
+    server: https://acme-v02.api.letsencrypt.org/directory
+    {{- end }}
+    email: {{ .Values.email | default (printf "admin@%s" .Values.domain) }}
+    privateKeySecretRef:
+      name: cloudflare-dns-issuer-key
+    solvers:
+      - dns01:
+          cnameStrategy: Follow
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: CLOUDFLARE_API_TOKEN

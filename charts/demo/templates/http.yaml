@@ -1,0 +1,103 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-http
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: demo-http
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-http
+  template:
+    metadata:
+      labels:
+        app: demo-http
+    spec:
+      containers:
+      - name: http-server
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+          name: http
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-http
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: demo-http
+spec:
+  selector:
+    app: demo-http
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  type: ClusterIP
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: demo-http-mesh-dns
+  namespace: {{ .Release.Namespace }}
+spec:
+  hosts:
+  - "http.{{ .Values.domain }}"
+  ports:
+  - number: 80
+    name: http
+    protocol: HTTP
+  - number: 443
+    name: https
+    protocol: HTTPS
+  resolution: DNS
+  location: MESH_INTERNAL
+  # This ServiceEntry tells Istio to intercept DNS queries for http.local.olsen.cloud
+  # When DNS resolution happens, Istio will intercept and route to the VirtualService
+  # The VirtualService below will then route to the Kubernetes service
+  # Port 443 is included so HTTPS traffic is also intercepted and routed through the mesh
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: demo-http
+  namespace: {{ .Release.Namespace }}
+spec:
+  hosts:
+  - "http.{{ .Values.domain }}"
+  gateways:
+  - "{{ .Values.gateway.private }}"
+  - mesh
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: demo-http
+        port:
+          number: 80
+  # TLS configuration for mesh-internal HTTPS traffic
+  # This allows HTTPS traffic from within the mesh to be handled
+  tls:
+  - match:
+    - port: 443
+      sniHosts:
+      - "http.{{ .Values.domain }}"
+    route:
+    - destination:
+        host: demo-http
+        port:
+          number: 80

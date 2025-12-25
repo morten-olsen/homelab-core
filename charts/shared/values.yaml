@@ -1,0 +1,4 @@
+domain: local.olsen.cloud
+# ACME environment: "prod" or "stage"
+acme: prod
+project: shared
