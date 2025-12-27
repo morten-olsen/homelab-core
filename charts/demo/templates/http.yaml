@@ -50,7 +50,7 @@ spec:
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
 metadata:
-  name: demo-http-mesh-dns
+  name: demo-http-mesh-dns-http
   namespace: {{ .Release.Namespace }}
 spec:
   hosts:
@@ -59,15 +59,40 @@ spec:
   - number: 80
     name: http
     protocol: HTTP
+  resolution: DNS
+  location: MESH_INTERNAL
+  # This ServiceEntry tells Istio to intercept DNS queries for http.local.olsen.cloud (HTTP)
+  # HTTP traffic goes directly through the mesh to the service
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: demo-http-mesh-dns-https
+  namespace: {{ .Release.Namespace }}
+spec:
+  hosts:
+  - "http.{{ .Values.domain }}"
+  ports:
   - number: 443
     name: https
     protocol: HTTPS
-  resolution: DNS
+  resolution: STATIC
   location: MESH_INTERNAL
-  # This ServiceEntry tells Istio to intercept DNS queries for http.local.olsen.cloud
-  # When DNS resolution happens, Istio will intercept and route to the VirtualService
-  # The VirtualService below will then route to the Kubernetes service
-  # Port 443 is included so HTTPS traffic is also intercepted and routed through the mesh
+  # Route HTTPS traffic to the Gateway service for TLS termination
+  # The Gateway terminates TLS and forwards HTTP to the VirtualService
+  # We use Helm's lookup function to get the Gateway service ClusterIP dynamically
+  endpoints:
+  {{- $gatewaySvc := lookup "v1" "Service" "istio-ingress" "gateway" }}
+  {{- if $gatewaySvc }}
+  - address: {{ $gatewaySvc.spec.clusterIP }}
+    ports:
+      https: 443
+  {{- else }}
+  # Gateway service not found - HTTPS will fail until Gateway is deployed
+  - address: "0.0.0.0"
+    ports:
+      https: 443
+  {{- end }}
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -89,8 +114,9 @@ spec:
         host: demo-http
         port:
           number: 80
-  # TLS configuration for mesh-internal HTTPS traffic
-  # This allows HTTPS traffic from within the mesh to be handled
+  # TLS configuration for HTTPS traffic
+  # For Gateway traffic: Gateway terminates TLS and forwards HTTP to backend
+  # For mesh traffic: Sidecar terminates TLS (requires certificate in namespace)
   tls:
   - match:
     - port: 443
