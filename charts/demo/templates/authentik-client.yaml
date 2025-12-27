@@ -1,0 +1,17 @@
+
+apiVersion: authentik.homelab.mortenolsen.pro/v1alpha1
+kind: AuthentikClient
+metadata:
+  labels:
+    app.kubernetes.io/name: operator-authentik
+    app.kubernetes.io/managed-by: kustomize
+  name: "autentik-client"
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  serverRef:
+    name: authentik
+    namespace: shared
+  name: Demo application
+  redirectUris:
+    - https://myapp.example.com/callback
+    - https://myapp.example.com/auth/callback
