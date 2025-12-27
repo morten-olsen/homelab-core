@@ -1,15 +1,18 @@
+{{- if .Values.resources.certificate.enabled -}}
+{{- $cert := .Values.resources.certificate -}}
+{{- $global := .Values.global -}}
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: wildcard-tls
+  name: {{ $cert.secretName }}
   namespace: "istio-ingress"
 spec:
-  secretName: wildcard-tls
+  secretName: {{ $cert.secretName }}
   issuerRef:
     name: cloudflare-dns
     kind: Issuer
   dnsNames:
-  - "*.{{ .Values.domain }}"
-  - "{{ .Values.domain }}"
-
+  - "*.{{ $global.domain }}"
+  - "{{ $global.domain }}"
+{{- end }}

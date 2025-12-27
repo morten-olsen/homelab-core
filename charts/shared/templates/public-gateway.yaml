@@ -1,27 +1,5 @@
----
-apiVersion: networking.istio.io/v1beta1
-kind: Gateway
-metadata:
-  name: public
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app.kubernetes.io/managed-by: Helm
-spec:
-  selector:
-    istio: gateway
-  servers:
-  - port:
-      number: 8080
-      name: http
-      protocol: HTTP
-    hosts:
-    - "*"
-  - port:
-      number: 8443
-      name: https
-      protocol: HTTPS
-    hosts:
-    - "*"
-    tls:
-      mode: SIMPLE
-      credentialName: wildcard-tls
+{{- if .Values.resources.gateways.public.enabled -}}
+{{- $gw := .Values.resources.gateways.public -}}
+{{- $cert := .Values.resources.certificate -}}
+{{- include "homelab-shared.gateway" (dict "name" "public" "httpPort" $gw.httpPort "httpsPort" $gw.httpsPort "tlsSecretName" $cert.secretName "namespace" .Release.Namespace) }}
+{{- end }}

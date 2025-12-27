@@ -24,7 +24,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: default
+  project: "{{ .Values.core.project }}"
   source:
     repoURL: "{{ .Values.repoUrl }}"
     targetRevision: "{{ .Values.revision }}"

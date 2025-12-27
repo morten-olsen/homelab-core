@@ -1,8 +1,8 @@
-{{- define "homelab-core.name" -}}
+{{- define "homelab-shared.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{- define "homelab-core.fullname" -}}
+{{- define "homelab-shared.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -15,20 +15,20 @@
 {{- end }}
 {{- end }}
 
-{{- define "homelab-core.chart" -}}
+{{- define "homelab-shared.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{- define "homelab-core.labels" -}}
-helm.sh/chart: {{ include "homelab-core.chart" . }}
-{{ include "homelab-core.selectorLabels" . }}
+{{- define "homelab-shared.labels" -}}
+helm.sh/chart: {{ include "homelab-shared.chart" . }}
+{{ include "homelab-shared.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
-{{- define "homelab-core.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "homelab-core.name" . }}
+{{- define "homelab-shared.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "homelab-shared.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}

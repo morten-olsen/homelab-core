@@ -1,4 +1,51 @@
-domain: local.olsen.cloud
-# ACME environment: "prod" or "stage"
-acme: prod
-project: shared
+global:
+  project: shared
+  domain: olsen.cloud
+  email:
+  acme: prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=true
+
+resources:
+  ingressClass:
+    enabled: true
+
+  gateway:
+    enabled: true
+    version: 1.28.2
+    namespace: istio-ingress
+
+  certIssuer:
+    enabled: true
+    cloudflare:
+      enabled: true
+
+  certificate:
+    enabled: true
+    secretName: wildcard-tls
+
+  postgresCluster:
+    enabled: true
+
+  authentik:
+    enabled: true
+    subdomain: auth
+    tls:
+      enabled: true
+      secretName: wildcard-tls
+
+  gateways:
+    public:
+      enabled: true
+      httpPort: 18080
+      httpsPort: 18443
+    private:
+      enabled: true
+      httpPort: 80
+      httpsPort: 443

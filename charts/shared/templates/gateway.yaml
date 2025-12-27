@@ -1,3 +1,7 @@
+{{- if .Values.resources.gateway.enabled -}}
+{{- $global := .Values.global -}}
+{{- $gateway := .Values.resources.gateway -}}
+{{- $syncPolicy := default $global.syncPolicy $gateway.syncPolicy -}}
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -8,19 +12,37 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   destination:
-    namespace: "istio-ingress"
+    namespace: {{ $gateway.namespace }}
     server: https://kubernetes.default.svc
-  project: "{{ .Values.project }}"
+  project: {{ $global.project }}
   source:
     repoURL: https://istio-release.storage.googleapis.com/charts
-    targetRevision: 1.28.2
+    targetRevision: {{ $gateway.version }}
     chart: gateway
+    helm:
+      values: |
+        service:
+          ports:
+            - name: status-port
+              port: 15021
+              targetPort: 15021
+              protocol: TCP
+            - name: http2
+              port: 80
+              targetPort: 80
+              protocol: TCP
+            - name: https
+              port: 443
+              targetPort: 443
+              protocol: TCP
+            - name: http-public
+              port: 18080
+              targetPort: 18080
+              protocol: TCP
+            - name: https-public
+              port: 18443
+              targetPort: 18443
+              protocol: TCP
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - ServerSideApply=true
-      - ApplyOutOfSyncOnly=true
-      - CreateNamespace=true
-
+    {{- toYaml $syncPolicy | nindent 4 }}
+{{- end }}

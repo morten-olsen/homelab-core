@@ -1,0 +1,31 @@
+{{- define "homelab-shared.gateway" -}}
+{{- $name := .name -}}
+{{- $httpPort := .httpPort -}}
+{{- $httpsPort := .httpsPort -}}
+{{- $tlsSecretName := .tlsSecretName -}}
+{{- $namespace := .namespace -}}
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: {{ $name }}
+  namespace: {{ $namespace }}
+spec:
+  selector:
+    istio: gateway
+  servers:
+  - port:
+      number: {{ $httpPort }}
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
+  - port:
+      number: {{ $httpsPort }}
+      name: https
+      protocol: HTTPS
+    hosts:
+    - "*"
+    tls:
+      mode: SIMPLE
+      credentialName: {{ $tlsSecretName }}
+{{- end }}

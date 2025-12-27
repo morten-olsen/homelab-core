@@ -1,11 +1,151 @@
-project: core
-# cert-manager configuration
-certManager:
-  # DNS01 recursive nameservers for self-check
-  # Set to empty array to use default nameservers from /etc/resolv.conf
-  dns01RecursiveNameservers:
-    - "8.8.8.8:53"
-    - "1.1.1.1:53"
-  # Force cert-manager to only use recursive nameservers (not authoritative)
-  # This can cause DNS01 self-check to take longer due to caching
-  dns01RecursiveNameserversOnly: true
+global:
+  project: core
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=true
+
+operators:
+  authentik:
+    enabled: true
+    version: 0.0.12
+    namespace: authentik
+    repoURL: https://mortenolsen.pro/homelab-authentik-operator
+    chart: authentik-operator
+
+  cert-manager:
+    enabled: true
+    version: 1.19.2
+    namespace: cert-manager
+    repoURL: oci://quay.io/jetstack/charts/cert-manager
+    path: .
+    values:
+      crds:
+        enabled: true
+      extraArgs:
+        - --dns01-recursive-nameservers-only
+        - --dns01-recursive-nameservers=8.8.8.8:53,1.1.1.1:53
+
+  falco:
+    enabled: false
+    version: 7.0.2
+    namespace: falco
+    repoURL: https://falcosecurity.github.io/charts
+    chart: falco
+
+  istio-base:
+    enabled: true
+    version: 1.28.2
+    namespace: istio-system
+    repoURL: https://istio-release.storage.googleapis.com/charts
+    chart: base
+    values:
+      defaultRevision: default
+      profile: ambient
+    ignoreDifferences:
+      - group: admissionregistration.k8s.io
+        kind: ValidatingWebhookConfiguration
+        name: istiod-default-validator
+        jqPathExpressions:
+          - .webhooks[]?.failurePolicy
+
+  istiod:
+    enabled: true
+    version: 1.28.2
+    namespace: istio-system
+    repoURL: https://istio-release.storage.googleapis.com/charts
+    chart: istiod
+    values:
+      meshConfig:
+        # Enable Ingress support - Istio will handle Kubernetes Ingress resources
+        # The gateway service is in the shared namespace (created by gateway chart)
+        # Format: namespace/service-name (required when gateway is in different namespace than istio-system)
+        ingressService: shared/istio-gateway
+        # Match gateway pods with label istio=gateway (matches Gateway CR selector)
+        # This tells Istio which gateway pods to use for ingress traffic
+        ingressSelector: gateway
+        # Enable DNS proxy to intercept DNS queries for mesh-internal hostnames
+        # This ensures Istio intercepts DNS queries before they reach public DNS
+        defaultConfig:
+          proxyMetadata:
+            # Enable DNS capture - Istio sidecar will intercept DNS queries
+            ISTIO_META_DNS_CAPTURE: "true"
+            # DNS auto allocate - automatically assign virtual IPs for ServiceEntry hosts
+            ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+    ignoreDifferences:
+      - group: admissionregistration.k8s.io
+        kind: ValidatingWebhookConfiguration
+        name: istio-validator-istio-system
+        jqPathExpressions:
+          - .webhooks[]?.failurePolicy
+
+  kyverno:
+    enabled: true
+    version: 3.6.1
+    namespace: kyverno
+    repoURL: https://kyverno.github.io/kyverno
+    chart: kyverno
+
+  nuclei:
+    enabled: false
+    version: 0.2.9
+    namespace: "{{ .Release.Namespace }}"
+    repoURL: https://morten-olsen.github.io/homelab-nuclei-operator
+    chart: nuclei-operator
+
+  openebs:
+    enabled: true
+    version: 4.4.0
+    namespace: openebs
+    repoURL: https://openebs.github.io/openebs
+    chart: openebs
+    values:
+      loki:
+        enabled: false
+      mayastor:
+        enabled: false
+        loki-stack:
+          enabled: false
+      engines:
+        local:
+          lvm:
+            enabled: false
+          zfs:
+            enabled: false
+          rawfile:
+            enabled: false
+        replicated:
+          mayastor:
+            enabled: false
+
+  postgres:
+    enabled: true
+    version: 0.0.11
+    namespace: postgres
+    repoURL: https://mortenolsen.pro/homelab-postgres-operator
+    chart: postgres-operator
+
+  releader:
+    enabled: true
+    version: 2.2.7
+    namespace: releader
+    repoURL: https://stakater.github.io/stakater-charts
+    chart: releader
+
+  sealed-secrets:
+    enabled: true
+    version: 2.17.9
+    namespace: sealed-secrets
+    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    chart: sealed-secrets
+
+  trivy:
+    enabled: true
+    version: 0.31.0
+    namespace: trivy
+    repoURL: https://aquasecurity.github.io/helm-charts
+    chart: trivy-operator

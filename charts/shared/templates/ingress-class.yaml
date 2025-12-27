@@ -1,7 +1,5 @@
+{{- if .Values.resources.ingressClass.enabled -}}
 ---
-# IngressClass for Istio - enables Kubernetes Ingress resources to work with Istio Gateway
-# Applications can use standard Ingress resources with ingressClassName: istio
-# For automatic TLS, add cert-manager annotations (see example below)
 apiVersion: networking.k8s.io/v1
 kind: IngressClass
 metadata:
@@ -10,4 +8,4 @@ metadata:
     ingressclass.kubernetes.io/is-default-class: "true"
 spec:
   controller: istio.io/ingress-controller
-
+{{- end }}

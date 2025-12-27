@@ -1,11 +1,8 @@
+{{- if .Values.resources.certIssuer.enabled -}}
+{{- $global := .Values.global -}}
+{{- $issuer := .Values.resources.certIssuer -}}
+{{- $email := $global.email | default (printf "admin@%s" $global.domain) -}}
 ---
-# Cloudflare DNS-01 ACME Issuer for cert-manager
-#
-# Prerequisites:
-# - The secret 'cloudflare-api-token' must exist in the same namespace
-#   See cloudflare-secret.example.yaml for an example of how to create it
-# - The secret 'cloudflare-dns-issuer-key' will be created automatically by cert-manager
-#
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
@@ -13,18 +10,21 @@ metadata:
   namespace: "istio-ingress"
 spec:
   acme:
-    {{- if eq .Values.acme "stage" }}
+    {{- if eq $global.acme "stage" }}
     server: https://acme-staging-v02.api.letsencrypt.org/directory
     {{- else }}
     server: https://acme-v02.api.letsencrypt.org/directory
     {{- end }}
-    email: {{ .Values.email | default (printf "admin@%s" .Values.domain) }}
+    email: {{ $email }}
     privateKeySecretRef:
       name: cloudflare-dns-issuer-key
     solvers:
       - dns01:
           cnameStrategy: Follow
           cloudflare:
+            {{- if $issuer.cloudflare.enabled }}
             apiTokenSecretRef:
               name: cloudflare-api-token
-              key: CLOUDFLARE_API_TOKEN
+              key: api-token
+            {{- end }}
+{{- end }}
