@@ -111,6 +111,11 @@ operators:
     repoURL: https://openebs.github.io/openebs
     chart: openebs
     values:
+      # https://github.com/openebs/dynamic-localpv-provisioner/blob/develop/deploy/helm/charts/values.yaml
+      localpv-provisioner:
+        hostpathClass:
+          reclaimPolicy: Retain
+          isDefaultClass: true
       loki:
         enabled: false
       mayastor:
