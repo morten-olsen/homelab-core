@@ -35,7 +35,7 @@ resources:
 
   authentik:
     enabled: true
-    subdomain: authentik
+    subdomain: auth
     tls:
       enabled: true
       secretName: wildcard-tls
