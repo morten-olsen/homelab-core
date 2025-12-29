@@ -38,4 +38,41 @@ spec:
   tls:
     enabled: {{ $auth.tls.enabled }}
     secretName: {{ $auth.tls.secretName }}
+
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: "authentik-public"
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  gateways:
+    - "{{ .Release.Namespace }}/pubilc"
+  hosts:
+    - "{{ $auth.subdomain }}.{{ $global.domain }}"
+  http:
+    - route:
+        - destination:
+            host: "authentik"
+            port:
+              number: 9000
+
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: "authentik-private"
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  gateways:
+    - "{{ .Release.Namespace }}/private"
+  hosts:
+    - "{{ $auth.subdomain }}.{{ $global.domain }}"
+  http:
+    - route:
+        - destination:
+            host: "authentik"
+            port:
+              number: 9000
+
 {{- end }}
