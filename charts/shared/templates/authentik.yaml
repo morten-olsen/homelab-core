@@ -26,7 +26,7 @@ spec:
     name: authentik-db-connection
     namespace: {{ .Release.Namespace }}
     key: user
-  postgresNameSecretRef:
+  postgresDatabaseSecretRef:
     name: authentik-db-connection
     namespace: {{ .Release.Namespace }}
     key: database
@@ -35,9 +35,6 @@ spec:
     namespace: {{ .Release.Namespace }}
     key: password
   host: {{ $auth.subdomain }}.{{ $global.domain }}
-  tls:
-    enabled: {{ $auth.tls.enabled }}
-    secretName: {{ $auth.tls.secretName }}
 
 ---
 apiVersion: networking.istio.io/v1
