@@ -30,6 +30,13 @@ operators:
         - --dns01-recursive-nameservers-only
         - --dns01-recursive-nameservers=8.8.8.8:53,1.1.1.1:53
 
+  external-secrets:
+    enabled: true
+    version: 1.2.0
+    namespace: external-secrets
+    repoURL: https://charts.external-secrets.io
+    chart: external-secrets
+
   falco:
     enabled: false
     version: 7.0.2
