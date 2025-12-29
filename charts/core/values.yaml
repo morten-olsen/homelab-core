@@ -136,6 +136,13 @@ operators:
     repoURL: https://mortenolsen.pro/homelab-postgres-operator
     chart: postgres-operator
 
+  reflector:
+    enabled: true
+    version: 9.1.45
+    namespace: reflector
+    repoURL: oci://ghcr.io/emberstack/helm-charts/reflector
+    path: .
+
   releader:
     enabled: true
     version: 2.2.7
