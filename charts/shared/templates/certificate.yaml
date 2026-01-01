@@ -6,7 +6,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: {{ $cert.secretName }}
-  namespace: "istio-ingress"
+  namespace: "{{ .Release.Namespace }}"
 spec:
   secretName: {{ $cert.secretName }}
   issuerRef:
@@ -15,4 +15,8 @@ spec:
   dnsNames:
   - "*.{{ $global.domain }}"
   - "{{ $global.domain }}"
+  secretTemplate:
+    annotations:
+      reflector.v1beta1.emberstack.com/reflection-allowed: "true"
+      reflector.v1beta1.emberstack.com/reflection-allowed-namespaces: "istio-ingress"
 {{- end }}
