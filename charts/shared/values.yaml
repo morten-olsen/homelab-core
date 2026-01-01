@@ -13,6 +13,19 @@ global:
       - CreateNamespace=true
 
 resources:
+  pihole:
+    subdomain: pihole
+    image:
+      repository: pihole/pihole
+      tag: latest
+      pullPolicy: IfNotPresent
+
+  pihole-dns:
+    image:
+      repository: ghcr.io/morten-olsen/homelab-dns-pihole
+      tag: latest
+      pullPolicy: IfNotPresent
+
   ingressClass:
     enabled: true
 

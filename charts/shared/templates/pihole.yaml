@@ -1,0 +1,91 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: 'pihole-data'
+spec:
+  accessModes:
+    - 'ReadWriteOnce'
+  resources:
+    requests:
+      storage: '1Gi'
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "pihole"
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    app: "pihole"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "pihole"
+  template:
+    metadata:
+      labels:
+        app: "pihole"
+    spec:
+      containers:
+        - name: "pihole"
+          image: "{{ .Values.resources.pihole.image.repository }}:{{ .Values.resources.pihole.image.tag }}"
+          imagePullPolicy: "{{ .Values.resources.pihole.image.pullPolicy }}"
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: TZ
+              value: "Europe/Amsterdam" # TODO: fix
+            - name: FTLCONF_dns_listeningMode
+              value: 'ALL'
+            - name: FTLCONF_webserver_api_password
+              value: 'correct horse battery staple'
+          volumeMounts:
+            - mountPath: /etc/pihole
+              name: data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: "pihole-data"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: "pihole-http"
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    app: "pihole"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app: "pihole"
+
+---
+
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: "pihole-private"
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  gateways:
+    - "{{ .Release.Name }}/private"
+    - mesh
+  hosts:
+    - "{{ .Values.resources.pihole.subdomain }}.{{ .Values.global.domain }}"
+  http:
+    - route:
+        - destination:
+            host: "pihole-http"
+            port:
+              number: 80
+
+

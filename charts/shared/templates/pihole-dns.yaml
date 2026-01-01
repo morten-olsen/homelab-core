@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "pihole-dns"
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    app: "pihole-dns"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "pihole-dns"
+  template:
+    metadata:
+      labels:
+        app: "pihole-dns"
+    spec:
+      containers:
+        - name: "pihole-dns"
+          image: "{{ index .Values.resources "pihole-dns" "image" "repository" }}:{{ index .Values.resources "pihole-dns" "image" "tag" }}"
+          imagePullPolicy: "{{ index .Values.resources "pihole-dns" "image" "pullPolicy" }}"
+          ports:
+            - containerPort: 7100
+              name: http
+          env:
+            - name: PIHOLE_PASSWORD # TODO remove to password generation
+              value: 'correct horse battery staple'
+            - name: PIHOLE_URL
+              value: 'http://pihole-http.{{ .Release.Namespace }}.svc.cluster.local:80'
+            - name: HMAC_SECRET
+              value: foo
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: "pihole-dns-http"
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    app: "pihole-dns"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7100
+      targetPort: 7100
+      protocol: TCP
+      name: http
+  selector:
+    app: "pihole-dns"
+
+---
+
+apiVersion: dns.homelab.mortenolsen.pro/v1alpha1
+kind: DNSClass
+metadata:
+  name: private-dns
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  # Server URL for the DNS provider webhook service
+  server: "http://pihole-dns-http.{{ .Release.Namespace }}.svc.cluster.local:7100"
+  
+  # Optional: Default TTL for records using this DNSClass
+  defaultTTL: 300
+  
+  # Optional: Connection timeout in seconds
+  timeoutSeconds: 30
+  
+  # Optional: HMAC-based authentication for request integrity verification
+  hmacAuth:
+    secret: foo # TODO: use generated secret
