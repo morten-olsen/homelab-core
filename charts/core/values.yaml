@@ -44,6 +44,13 @@ operators:
     repoURL: https://falcosecurity.github.io/charts
     chart: falco
 
+  dns-operator:
+    enabled: true
+    version: 0.0.3
+    namespace: falco
+    repoURL: https://morten-olsen.github.io/homelab-dns-operator
+    chart: dns-operator
+
   istio-base:
     enabled: true
     version: 1.28.2
@@ -149,7 +156,7 @@ operators:
     path: .
 
   releader:
-    enabled: true
+    enabled: false
     version: 2.2.7
     namespace: releader
     repoURL: https://stakater.github.io/stakater-charts
