@@ -40,7 +40,10 @@ spec:
             - name: FTLCONF_dns_listeningMode
               value: 'ALL'
             - name: FTLCONF_webserver_api_password
-              value: 'correct horse battery staple'
+              valueFrom:
+                secretKeyRef:
+                  name: pihole-password
+                  key: password
           volumeMounts:
             - mountPath: /etc/pihole
               name: data

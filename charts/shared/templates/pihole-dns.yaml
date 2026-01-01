@@ -23,12 +23,18 @@ spec:
             - containerPort: 7100
               name: http
           env:
-            - name: PIHOLE_PASSWORD # TODO remove to password generation
-              value: 'correct horse battery staple'
+            - name: PIHOLE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pihole-password
+                  key: password
             - name: PIHOLE_URL
               value: 'http://pihole-http.{{ .Release.Namespace }}.svc.cluster.local:80'
             - name: HMAC_SECRET
-              value: foo
+              valueFrom:
+                secretKeyRef:
+                  name: pihole-dns-hmac-secret
+                  key: hmac-secret
 ---
 
 apiVersion: v1
@@ -67,4 +73,7 @@ spec:
   
   # Optional: HMAC-based authentication for request integrity verification
   hmacAuth:
-    secret: foo # TODO: use generated secret
+    secretRef:
+      name: pihole-dns-hmac-secret
+      namespace: "{{ .Release.Namespace }}"
+      key: hmac-secret
