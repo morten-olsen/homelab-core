@@ -44,7 +44,7 @@ metadata:
   namespace: "{{ .Release.Namespace }}"
 spec:
   gateways:
-    - "{{ .Release.Namespace }}/pubilc"
+    - "{{ .Release.Namespace }}/public"
   hosts:
     - "{{ $auth.subdomain }}.{{ $global.domain }}"
   http:
