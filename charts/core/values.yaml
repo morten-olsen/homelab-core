@@ -123,6 +123,7 @@ operators:
       # https://github.com/openebs/dynamic-localpv-provisioner/blob/develop/deploy/helm/charts/values.yaml
       localpv-provisioner:
         hostpathClass:
+          name: prod
           reclaimPolicy: Retain
           isDefaultClass: true
       loki:
