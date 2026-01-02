@@ -12,7 +12,7 @@ global:
 operators:
   authentik:
     enabled: true
-    version: 0.0.13
+    version: 0.0.15
     namespace: authentik
     repoURL: https://mortenolsen.pro/homelab-authentik-operator
     chart: authentik-operator
