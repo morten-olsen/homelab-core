@@ -124,7 +124,7 @@ operators:
       localpv-provisioner:
         hostpathClass:
           reclaimPolicy: Retain
-          isDefaultClass: true
+          isDefaultClass: false
       loki:
         enabled: false
       mayastor:
