@@ -113,6 +113,17 @@ operators:
     repoURL: https://morten-olsen.github.io/homelab-nuclei-operator
     chart: nuclei-operator
 
+  longhorn:
+    enabled: true
+    version: 1.10.1
+    namespace: longhorn
+    repoURL: https://charts.longhorn.io
+    chart: longhorn
+    values:
+      defaultSettings:
+        defaultReplicaCount: 1
+        priorityClass: high-priority
+
   openebs:
     enabled: true
     version: 4.4.0
