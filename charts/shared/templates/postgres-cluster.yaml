@@ -8,20 +8,18 @@ spec:
   imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie
   storage:
     size: 10Gi
+  managed:
+    roles:
+      - name: controller
+        ensure: present
+        comment: Control databases
+        connectionLimit: -1
+        inherit: true
+        login: true
+        superuser: true
+        inRoles:
+        - pg_monitor
+        - pg_signal_backend
+        passwordSecret:
+          name: postgres-cluster-controller
 
----
-
-apiVersion: postgresql.cnpg.io/v1
-kind: User
-metadata:
-  name: postgres-admin
-  namespace: "{{ .Release.Namespace }}"
-spec:
-  cluster:
-    name: postgres-cluster
-  roleConfig:
-    login: true
-    createdb: true
-    createrole: true
-    inherit: true
-    replication: true

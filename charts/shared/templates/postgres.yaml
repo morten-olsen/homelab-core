@@ -10,10 +10,10 @@ spec:
     value: postgres-cluster-rw.shared.svc.cluster.local
   user:
     valueFrom:
-      name: postgres-cluster-app
-      key: user
+      name: postgres-cluster-controller
+      key: username
   password:
     valueFrom:
-      name: postgres-cluster-app
+      name: postgres-cluster-controller
       key: password
 {{- end }}

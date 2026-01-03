@@ -7,6 +7,7 @@ metadata:
     app: "pihole-dns"
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       app: "pihole-dns"
