@@ -134,9 +134,9 @@ operators:
       # https://github.com/openebs/dynamic-localpv-provisioner/blob/develop/deploy/helm/charts/values.yaml
       localpv-provisioner:
         hostpathClass:
-          name: prod
+          name: local-ebs
           reclaimPolicy: Retain
-          isDefaultClass: true
+          isDefaultClass: false
       loki:
         enabled: false
       mayastor:
