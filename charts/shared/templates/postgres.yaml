@@ -1,0 +1,9 @@
+{{- if .Values.resources.postgresCluster.enabled -}}
+---
+apiVersion: postgres.homelab.mortenolsen.pro/v1
+kind: PostgresCluster
+metadata:
+  name: postgres
+  namespace: {{ .Release.Namespace }}
+spec: {}
+{{- end }}

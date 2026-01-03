@@ -1,9 +1,10 @@
-{{- if .Values.resources.postgresCluster.enabled -}}
----
-apiVersion: postgres.homelab.mortenolsen.pro/v1
-kind: PostgresCluster
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
 metadata:
-  name: postgres
-  namespace: {{ .Release.Namespace }}
-spec: {}
-{{- end }}
+  name: postgres-cluster
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie
+  storage:
+    size: 10Gi
