@@ -42,7 +42,7 @@ operators:
   cloudnative-pg:
     enabled: true
     version: 0.27.0
-    namespace: clooudnative-pg
+    namespace: cloudnative-pg
     repoURL: https://cloudnative-pg.github.io/charts
     chart: cloudnative-pg
 
@@ -130,37 +130,6 @@ operators:
       defaultSettings:
         defaultReplicaCount: 1
         priorityClass: high-priority
-
-  openebs:
-    enabled: true
-    version: 4.4.0
-    namespace: openebs
-    repoURL: https://openebs.github.io/openebs
-    chart: openebs
-    values:
-      # https://github.com/openebs/dynamic-localpv-provisioner/blob/develop/deploy/helm/charts/values.yaml
-      localpv-provisioner:
-        hostpathClass:
-          name: local-ebs
-          reclaimPolicy: Retain
-          isDefaultClass: false
-      loki:
-        enabled: false
-      mayastor:
-        enabled: false
-        loki-stack:
-          enabled: false
-      engines:
-        local:
-          lvm:
-            enabled: false
-          zfs:
-            enabled: false
-          rawfile:
-            enabled: false
-        replicated:
-          mayastor:
-            enabled: false
 
   postgres:
     enabled: true
