@@ -1,4 +1,4 @@
-repoUrl: https://code.olsen.cloud/homelab/core.git
+repoUrl: https://github.com/morten-olsen/homelab-core.git
 targetRevision: main
 core:
   project: core
