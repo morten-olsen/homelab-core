@@ -8,3 +8,20 @@ spec:
   imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie
   storage:
     size: 10Gi
+
+---
+
+apiVersion: postgresql.cnpg.io/v1
+kind: User
+metadata:
+  name: postgres-admin
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  cluster:
+    name: postgres-cluster
+  roleConfig:
+    login: true
+    createdb: true
+    createrole: true
+    inherit: true
+    replication: true

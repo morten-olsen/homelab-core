@@ -5,5 +5,15 @@ kind: PostgresCluster
 metadata:
   name: postgres
   namespace: {{ .Release.Namespace }}
-spec: {}
+spec:
+  host:
+    value: postgres-cluster-rw.shared.svc.cluster.local
+  user:
+    valueFrom:
+      name: postgres-cluster-app
+      key: user
+  password:
+    valueFrom:
+      name: postgres-cluster-app
+      key: password
 {{- end }}
