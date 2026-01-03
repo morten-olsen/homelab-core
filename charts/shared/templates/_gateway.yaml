@@ -19,6 +19,8 @@ spec:
       protocol: HTTP
     hosts:
     - "*"
+    tls:
+      httpsRedirect: true
   - port:
       number: {{ $httpsPort }}
       name: https
