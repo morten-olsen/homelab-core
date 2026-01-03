@@ -39,6 +39,13 @@ operators:
     values:
       installCRDs: true
 
+  cloudnative-pg:
+    enabled: true
+    version: 0.27.0
+    namespace: clooudnative-pg
+    repoURL: https://cloudnative-pg.github.io/charts
+    chart: cloudnative-pg
+
   falco:
     enabled: false
     version: 7.0.2
