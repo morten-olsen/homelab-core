@@ -53,6 +53,20 @@ operators:
     repoURL: https://falcosecurity.github.io/charts
     chart: falco
 
+  mariadb-crds:
+    enabled: true
+    version: 25.10.3
+    namespace: mariadb
+    repoURL: https://helm.mariadb.com/mariadb-operator
+    chart: mariadb-operator-crds
+
+  mariadb-operator:
+    enabled: true
+    version: 25.10.3
+    namespace: mariadb
+    repoURL: https://helm.mariadb.com/mariadb-operator
+    chart: mariadb-operator
+
   dns-operator:
     enabled: true
     version: 0.0.3
