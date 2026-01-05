@@ -1,6 +1,7 @@
 global:
   project: shared
   domain: olsen.cloud
+  additional-domains: ["*.coder.olsen.cloud"]
   email:
   acme: prod
   syncPolicy:

@@ -15,6 +15,11 @@ spec:
   dnsNames:
   - "*.{{ $global.domain }}"
   - "{{ $global.domain }}"
+{{- if index $global "additional-domains" }}
+{{- range index $global "additional-domains" }}
+  - "{{ . }}"
+{{- end }}
+{{- end }}
   secretTemplate:
     annotations:
       reflector.v1beta1.emberstack.com/reflection-allowed: "true"
