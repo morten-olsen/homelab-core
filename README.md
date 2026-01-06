@@ -1,298 +1,297 @@
 # Homelab Core
 
-This repository contains ArgoCD Application definitions and configurations for deploying the core infrastructure of a home server setup.
+A Kubernetes-based homelab infrastructure stack built with Helm charts and ArgoCD. This project provides a complete, opinionated foundation for running a home server cluster with operators, shared resources, and GitOps-based deployment.
 
 ## Overview
 
-This project uses ArgoCD to manage GitOps-based deployments of various applications and services for a home lab environment. The repository follows the App-of-Apps pattern, where a root application manages multiple child applications.
+This repository contains three main Helm charts that work together to provision and manage a Kubernetes homelab:
 
-## Repository Structure
+- **`homelab`** - Master chart that orchestrates the deployment of core and shared resources via ArgoCD
+- **`core`** - Cluster operators and controllers (cert-manager, Istio, Kyverno, Longhorn, etc.)
+- **`shared`** - Shared infrastructure resources (PostgreSQL cluster, OIDC service, HTTP gateways, certificates, etc.)
+
+## Architecture
 
 ```
-.
-├── apps/              # ArgoCD Application definitions
-│   ├── app-of-apps.yaml
-│   └── example-app.yaml
-├── bootstrap/         # Bootstrap ArgoCD installation
-│   ├── argocd.yaml    # Direct YAML (deprecated, use Helm chart)
-│   └── values.yaml    # Helm values for bootstrap
-├── charts/            # Helm charts
-│   └── app-of-apps/   # App-of-Apps Helm chart
-│       ├── Chart.yaml
-│       ├── values.yaml
-│       └── templates/
-│           ├── app-of-apps.yaml
-│           └── _helpers.tpl
-├── e2e/              # End-to-end test scripts
-│   ├── setup-kind.sh
-│   ├── install-argocd.sh
-│   ├── deploy-bootstrap.sh
-│   ├── verify-deployment.sh
-│   ├── cleanup.sh
-│   └── apply-apps-local.sh
-├── .devcontainer/    # Dev container configuration
-│   ├── devcontainer.json
-│   └── README.md
-├── Makefile          # Convenience commands for testing
-├── flake.nix         # Nix flake for dependency management
-├── README.md         # User-facing documentation
-└── AGENTS.md         # AI agent documentation and conventions
+┌─────────────────────────────────────────┐
+│         homelab (Master Chart)          │
+│  Creates ArgoCD Applications            │
+└──────────────┬──────────────────────────┘
+               │
+       ┌───────┴───────┐
+       │               │
+   ┌───▼───┐      ┌───▼────┐
+   │ core  │      │ shared │
+   │       │      │        │
+   │ Sync  │      │ Sync   │
+   │ Wave  │      │ Wave   │
+   │   0   │      │   1    │
+   └───────┘      └────────┘
 ```
+
+### Chart Responsibilities
+
+#### `homelab` Chart
+The master chart that creates ArgoCD `Application` resources for deploying the `core` and `shared` charts. It manages:
+- ArgoCD AppProjects for organizing applications
+- Application definitions with proper sync waves
+- Repository and revision configuration
+
+#### `core` Chart
+Installs and manages cluster-level operators and controllers:
+- **cert-manager** - Certificate management
+- **Istio** - Service mesh (base + istiod)
+- **Kyverno** - Policy engine
+- **Longhorn** - Distributed block storage
+- **CloudNative-PG** - PostgreSQL operator
+- **External Secrets Operator** - Secret management
+- **Sealed Secrets** - Encrypted secrets
+- **Authentik Operator** - OIDC provider
+- **Trivy Operator** - Security scanning
+- **Reflector** - Secret/ConfigMap reflection
+- **DNS Operator** - DNS management
+- **MariaDB Operator** - MySQL/MariaDB operator
+- And more...
+
+#### `shared` Chart
+Provides shared infrastructure resources used by applications:
+- **Istio Gateways** - Public and private ingress gateways
+- **Certificates** - Wildcard TLS certificates via cert-manager
+- **PostgreSQL Cluster** - Shared database cluster
+- **Authentik** - OIDC/OAuth2 provider instance
+- **Pi-hole** - DNS filtering and ad blocking
+- **Storage Classes** - Longhorn-based storage
+- **Ingress Classes** - Kubernetes ingress configuration
 
 ## Prerequisites
 
-You can set up the development environment in three ways:
-
-### Option 1: Nix Flake (Recommended for Nix users)
-
-If you have [Nix](https://nixos.org/download.html) installed with [Flakes](https://nixos.wiki/wiki/Flakes) enabled:
-
-```bash
-# Enter the development shell (installs all dependencies)
-nix develop
-
-# Or use direnv for automatic activation (recommended)
-# The .envrc file is already configured
-direnv allow
-```
-
-With direnv, the development environment will automatically activate when you enter the directory.
-
-### Option 2: Dev Container (Recommended for VS Code/Cursor users)
-
-If you use VS Code or Cursor:
-
-1. Open the repository in your editor
-2. When prompted, click "Reopen in Container"
-3. Or use Command Palette: "Dev Containers: Reopen in Container"
-
-All dependencies are pre-installed. See [.devcontainer/README.md](.devcontainer/README.md) for details.
-
-### Option 3: Manual Installation
-
-Install the following tools manually:
-
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- [kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
-- [helm](https://helm.sh/docs/intro/install/)
-- [make](https://www.gnu.org/software/make/)
-- [Docker](https://docs.docker.com/get-docker/) (required for Kind)
+- Kubernetes cluster (1.24+)
+- **ArgoCD** installed and running in the `argocd` namespace
+- `kubectl` configured with cluster access
+- `helm` 3.x installed
+- Git repository access (for ArgoCD to sync)
 
 ## Quick Start
 
-### Running E2E Tests
+### Option 1: Deploy via Helm Template
 
-To run the complete end-to-end test suite:
+1. Clone this repository:
+   ```bash
+   git clone <repository-url>
+   cd homelab-core
+   ```
 
-```bash
-make test-e2e
-```
+2. Customize values in `charts/homelab/values.yaml`:
+   ```yaml
+   repoUrl: https://github.com/your-username/homelab-core.git
+   targetRevision: main  # Git branch, tag, or commit
+   core:
+     project: core
+   shared:
+     project: shared
+   ```
 
-This will:
-1. Create a Kind cluster
-2. Install ArgoCD
-3. Deploy the bootstrap application
-4. Verify all applications are healthy
-5. Clean up the cluster
+3. Template and apply the chart:
+   ```bash
+   helm template homelab ./charts/homelab | kubectl apply -f -
+   ```
 
-### Individual Test Steps
+### Option 2: Deploy via ArgoCD Application
 
-You can also run individual steps:
+1. Create an ArgoCD Application pointing to this repository:
+   ```yaml
+   apiVersion: argoproj.io/v1alpha1
+   kind: Application
+   metadata:
+     name: homelab
+     namespace: argocd
+   spec:
+     project: default
+     source:
+       repoURL: https://github.com/your-username/homelab-core.git
+       targetRevision: main
+       path: charts/homelab
+     destination:
+       server: https://kubernetes.default.svc
+       namespace: argocd
+     syncPolicy:
+       automated:
+         prune: true
+         selfHeal: true
+       syncOptions:
+         - ServerSideApply=true
+         - CreateNamespace=true
+   ```
 
-```bash
-# Create Kind cluster
-make setup-kind
-
-# Install ArgoCD
-make install-argocd
-
-# Deploy bootstrap application
-make deploy-bootstrap
-
-# Verify deployment
-make verify
-
-# Cleanup
-make cleanup
-```
+2. Apply the Application:
+   ```bash
+   kubectl apply -f homelab-app.yaml
+   ```
 
 ## Configuration
 
-### Deploying the App-of-Apps
+### Homelab Chart Values
 
-The app-of-apps can be deployed using either:
+Edit `charts/homelab/values.yaml`:
 
-#### Option 1: Helm Chart (Recommended)
-
-```bash
-# Using default values
-helm install app-of-apps ./charts/app-of-apps -n argocd --create-namespace
-
-# Using custom values
-helm install app-of-apps ./charts/app-of-apps \
-  -f bootstrap/values.yaml \
-  -n argocd \
-  --create-namespace
-
-# Or override specific values
-helm install app-of-apps ./charts/app-of-apps \
-  --set repo.url=https://github.com/your-username/homelab-core \
-  --set repo.targetRevision=main \
-  -n argocd \
-  --create-namespace
-```
-
-#### Option 2: Direct YAML (Legacy)
-
-```bash
-kubectl apply -f bootstrap/argocd.yaml
-```
-
-### Customizing Cluster Name
-
-You can customize the Kind cluster name:
-
-```bash
-make test-e2e CLUSTER_NAME=my-custom-cluster
-```
-
-### Configuring Repository URL
-
-For the e2e tests to work properly, ArgoCD needs to access your Git repository. The scripts will automatically detect the repository URL from your git remote. You can also override it:
-
-```bash
-make deploy-bootstrap REPO_URL=https://github.com/your-username/homelab-core
-```
-
-The e2e scripts use Helm by default. To use direct YAML instead:
-
-```bash
-USE_HELM=false make deploy-bootstrap REPO_URL=https://github.com/your-username/homelab-core
-```
-
-**Note:** For local testing without a remote Git repository, you'll need to either:
-1. Set up a Git remote pointing to your repository
-2. Use a local Git server setup (advanced)
-3. Manually sync applications using `argocd app sync` after applying manifests
-
-### ArgoCD Access
-
-After running `make install-argocd`, ArgoCD UI will be available at:
-- HTTP: http://localhost:30080
-- HTTPS: https://localhost:30443
-
-The default admin password can be retrieved with:
-```bash
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
-```
-
-## Adding Applications
-
-To add a new application to your homelab:
-
-1. Create a new Application manifest in the `apps/` directory
-2. The `app-of-apps` application (managed by the Helm chart) will automatically discover and deploy it
-3. Update `charts/app-of-apps/values.yaml` if you need to customize the application's sync policy or other settings
-
-Example application structure:
 ```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: my-app
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://charts.example.com
-    chart: my-chart
-    targetRevision: 1.0.0
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: my-namespace
+repoUrl: https://github.com/your-username/homelab-core.git
+targetRevision: main  # or specific branch/tag
+core:
+  project: core
+shared:
+  project: shared
+```
+
+### Core Chart Values
+
+Edit `charts/core/values.yaml` to enable/disable operators:
+
+```yaml
+global:
+  project: core
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
+
+operators:
+  cert-manager:
+    enabled: true
+    version: 1.19.2
+    # ... operator-specific configuration
 ```
 
-## Development
+### Shared Chart Values
 
-### Testing Locally
+Edit `charts/shared/values.yaml` to configure shared resources:
 
-1. Ensure all prerequisites are installed
-2. Run `make test-e2e` to verify your changes
-3. Check the ArgoCD UI to inspect application status
+```yaml
+global:
+  project: shared
+  domain: yourdomain.com
+  email: your-email@example.com
+  acme: prod  # or staging
 
-### Documentation Maintenance
-
-**Important**: This repository maintains two key documentation files:
-
-- **README.md** - User-facing documentation (this file)
-- **AGENTS.md** - AI agent documentation with project conventions and workflows
-
-**When making changes to the project:**
-
-1. **Always update relevant documentation**:
-   - Update `README.md` for user-facing changes (usage, examples, new features)
-   - Update `AGENTS.md` for structural changes, conventions, or workflow modifications
-   - Keep both files synchronized with the actual codebase
-
-2. **When discovering discrepancies**:
-   - If code and documentation don't match, fix the discrepancy
-   - Update the relevant documentation files to reflect the correct state
-   - Document the fix in your commit message
-
-3. **Before committing**:
-   - Verify documentation accuracy
-   - Ensure examples in documentation work with current code
-   - Check that file paths and commands are correct
-
-This ensures that both human contributors and AI agents have accurate, up-to-date information about the project.
-
-### Troubleshooting
-
-If tests fail, you can inspect the cluster state:
-
-```bash
-# Check ArgoCD applications
-kubectl get applications -n argocd
-
-# Check application details
-kubectl describe application <app-name> -n argocd
-
-# Check pods
-kubectl get pods -A
-
-# View ArgoCD logs
-kubectl logs -n argocd -l app.kubernetes.io/name=argocd-server
+resources:
+  gateway:
+    enabled: true
+  certIssuer:
+    enabled: true
+  postgresCluster:
+    enabled: true
+  authentik:
+    enabled: true
+    subdomain: auth
 ```
 
-### Ingress Configuration
+## Deployment Order
 
-The Kind cluster is configured **without any ingress controller** pre-installed. This is intentional as Istio (deployed via ArgoCD applications) will handle ingress functionality. The port mappings (30080, 30443) are specifically for ArgoCD access and are not related to ingress.
+The charts use ArgoCD sync waves to ensure proper deployment order:
 
-#### Using Kubernetes Ingress Resources
+1. **Wave 0**: `core` chart deploys operators and controllers
+2. **Wave 1**: `shared` chart deploys shared infrastructure (depends on operators from core)
 
-Istio supports both **VirtualServices** (Istio-native) and **Kubernetes Ingress** resources. To use standard Ingress resources:
+This ensures that operators like cert-manager and Istio are available before shared resources that depend on them.
 
-1. **Use the `istio` IngressClass**: Set `ingressClassName: istio` in your Ingress resource
-2. **Automatic TLS**: Add cert-manager annotations for automatic certificate provisioning:
-   ```yaml
-   annotations:
-     cert-manager.io/issuer: cloudflare-dns
-     cert-manager.io/issuer-kind: Issuer
+## Customization
+
+This project is **heavily opinionated** and designed for home server use. Key design decisions:
+
+- Uses Istio for service mesh and ingress
+- Prefers CloudNative-PG for PostgreSQL
+- Uses cert-manager with Cloudflare DNS for certificates
+- Assumes ArgoCD for GitOps workflows
+- Uses Longhorn for persistent storage
+- Integrates Authentik for authentication
+
+To customize:
+
+1. Fork this repository
+2. Modify values files in each chart
+3. Adjust templates as needed
+4. Update the repository URL in `homelab/values.yaml`
+
+## Secrets Management
+
+This project uses multiple secret management approaches:
+
+- **Sealed Secrets** - For encrypting secrets in Git
+- **External Secrets Operator** - For syncing secrets from external sources
+- **Reflector** - For copying secrets across namespaces
+
+See individual operator documentation for secret configuration.
+
+## Monitoring and Observability
+
+- **Trivy Operator** - Security scanning and vulnerability detection
+- **Falco** - Runtime security monitoring (optional)
+- ArgoCD provides application health and sync status
+
+## Troubleshooting
+
+### ArgoCD Applications Not Syncing
+
+1. Check ArgoCD application status:
+   ```bash
+   kubectl get applications -n argocd
    ```
-3. **Example**: See `charts/shared/templates/ingress-example.yaml` for a complete example
 
-The Istio ingress controller automatically converts Ingress resources to VirtualServices and routes traffic through the Istio Gateway, providing seamless integration with existing Kubernetes Ingress-based applications.
+2. View application details:
+   ```bash
+   argocd app get core
+   argocd app get shared
+   ```
 
-## Additional Documentation
+3. Check repository access:
+   ```bash
+   argocd repo list
+   ```
 
-- **[AGENTS.md](AGENTS.md)** - Detailed documentation for AI agents and assistants working on this project. Contains project conventions, common tasks, and troubleshooting guides.
+### Operators Not Installing
+
+1. Verify ArgoCD project permissions:
+   ```bash
+   kubectl get appproject -n argocd
+   ```
+
+2. Check operator application status:
+   ```bash
+   kubectl get applications -n argocd | grep <operator-name>
+   ```
+
+### Certificate Issues
+
+1. Verify cert-manager is running:
+   ```bash
+   kubectl get pods -n cert-manager
+   ```
+
+2. Check certificate status:
+   ```bash
+   kubectl get certificates -n shared
+   kubectl describe certificate -n shared wildcard-tls
+   ```
+
+## Contributing
+
+This is a personal homelab project, but contributions and suggestions are welcome. Please:
+
+1. Open an issue to discuss changes
+2. Fork the repository
+3. Make your changes
+4. Submit a pull request
 
 ## License
 
-MIT
+[Add your license here]
+
+## Acknowledgments
+
+Built with:
+- [ArgoCD](https://argoproj.github.io/cd/)
+- [Istio](https://istio.io/)
+- [cert-manager](https://cert-manager.io/)
+- [CloudNative-PG](https://cloudnative-pg.io/)
+- [Longhorn](https://longhorn.io/)
+- And many other excellent open-source projects
