@@ -1,0 +1,3 @@
+{{- range $name, $monitoring := .Values.monitoring }}
+{{- include "homelab-monitor.monitoringApp" (list $name $) }}
+{{- end }}

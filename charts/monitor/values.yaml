@@ -1,0 +1,138 @@
+global:
+  domain: olsen.cloud
+  project: monitor
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=true
+
+monitoring:
+  prometheus-operator:
+    enabled: true
+    version: 80.13.0
+    namespace: monitoring
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    values:
+      # Prometheus configuration
+      prometheus:
+        prometheusSpec:
+          retention: 30d
+          retentionSize: 50GiB
+          storageSpec:
+            volumeClaimTemplate:
+              spec:
+                storageClassName: longhorn
+                accessModes: ["ReadWriteOnce"]
+                resources:
+                  requests:
+                    storage: 50Gi
+          # ServiceMonitor and PodMonitor discovery
+          serviceMonitorSelectorNilUsesHelmValues: false
+          podMonitorSelectorNilUsesHelmValues: false
+          ruleSelectorNilUsesHelmValues: false
+          # Resource limits
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+
+      # Grafana configuration
+      grafana:
+        enabled: true
+        # Option 1: Use a plain text password (not recommended for production)
+        # adminPassword: admin
+
+        # Option 2: Use an existing Kubernetes secret (recommended)
+        # The secret is automatically created by External Secrets Operator (see grafanaAdminSecret below)
+        # Or create manually: kubectl create secret generic grafana-admin -n monitoring --from-literal=admin-user=admin --from-literal=admin-password=your-secure-password
+        admin:
+          existingSecret: grafana-admin
+          userKey: admin-user # Key in secret for username (default: admin-user)
+          passwordKey: admin-password # Key in secret for password (default: admin-password)
+
+        persistence:
+          enabled: true
+          storageClassName: longhorn
+          size: 10Gi
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        service:
+          type: ClusterIP
+        # Enable Istio sidecar injection
+        podAnnotations:
+          sidecar.istio.io/inject: "true"
+
+      # Alertmanager configuration
+      alertmanager:
+        enabled: true
+        alertmanagerSpec:
+          storage:
+            volumeClaimTemplate:
+              spec:
+                storageClassName: longhorn
+                accessModes: ["ReadWriteOnce"]
+                resources:
+                  requests:
+                    storage: 10Gi
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+      # Node exporter
+      nodeExporter:
+        enabled: true
+
+      # Kube state metrics
+      kubeStateMetrics:
+        enabled: true
+
+      # Default rules
+      defaultRules:
+        create: true
+        rules:
+          alertmanager: true
+          etcd: false # Disable if etcd is not exposed
+          general: true
+          k8s: true
+          kubeApiserverAvailability: true
+          kubeApiserverBurnrate: true
+          kubeApiserverHistogram: true
+          kubeApiserverSlos: true
+          kubelet: true
+          kubeProxy: true
+          kubePrometheusGeneral: true
+          kubePrometheusNodeRecording: true
+          kubernetesApps: true
+          kubernetesResources: true
+          kubernetesStorage: true
+          kubernetesSystem: true
+          kubeSchedulerAlerting: true
+          kubeSchedulerRecording: true
+          network: true
+          node: true
+          nodeExporterAlerting: true
+          nodeExporterRecording: true
+          prometheus: true
+          prometheusOperator: true
+          time: true
+
+resources:
+  grafanaAdminSecret:
+    enabled: true

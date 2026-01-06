@@ -1,6 +1,48 @@
 repoUrl: https://github.com/morten-olsen/homelab-core.git
 targetRevision: main
+revision: main
+
 core:
   project: core
+  # Value overrides for the core chart
+  # These values will be merged with the core chart's default values.yaml
+  # values:
+  #   global:
+  #     syncPolicy:
+  #       automated:
+  #         prune: false
+  #   operators:
+  #     cert-manager:
+  #       enabled: true
+  #       values:
+  #         extraArgs:
+  #           - --dns01-recursive-nameservers-only
+
 shared:
   project: shared
+  # Value overrides for the shared chart
+  # These values will be merged with the shared chart's default values.yaml
+  # values:
+  #   global:
+  #     domain: example.com
+  #     email: admin@example.com
+  #   resources:
+  #     gateway:
+  #       enabled: true
+
+monitor:
+  project: monitor
+  # Value overrides for the monitor chart
+  # These values will be merged with the monitor chart's default values.yaml
+  # values:
+  #   global:
+  #     syncPolicy:
+  #       automated:
+  #         prune: true
+  #   monitoring:
+  #     prometheus-operator:
+  #       enabled: true
+  #       values:
+  #         prometheus:
+  #           prometheusSpec:
+  #             retention: 60d

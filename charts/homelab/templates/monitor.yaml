@@ -2,10 +2,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: "{{ .Values.core.project }}"
+  name: "{{ .Values.monitor.project }}"
   namespace: argocd
 spec:
-  description: "Project for homelab apps"
+  description: "Project for monitoring stack"
   sourceRepos:
     - "*"
   destinations:
@@ -16,28 +16,29 @@ spec:
       kind: "*"
 
 ---
+
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: core
+  name: monitor
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "2"
 spec:
-  project: "{{ .Values.core.project }}"
+  project: "{{ .Values.monitor.project }}"
   source:
     repoURL: "{{ .Values.repoUrl }}"
     targetRevision: "{{ .Values.revision }}"
-    path: charts/core
+    path: charts/monitor
     helm:
       values: |
-        project: "{{ .Values.core.project }}"
-        {{- if .Values.core.values }}
-        {{- toYaml .Values.core.values | nindent 8 }}
+        project: "{{ .Values.monitor.project }}"
+        {{- if .Values.monitor.values }}
+        {{- toYaml .Values.monitor.values | nindent 8 }}
         {{- end }}
   destination:
     server: https://kubernetes.default.svc
-    namespace: core
+    namespace: monitoring
   syncPolicy:
     automated:
       prune: true
@@ -46,4 +47,7 @@ spec:
       - ServerSideApply=true
       - ApplyOutOfSyncOnly=true
       - CreateNamespace=true
-
+    managedNamespaceMetadata:
+      labels:
+        istio.io/rev: default
+        istio-injection: enabled

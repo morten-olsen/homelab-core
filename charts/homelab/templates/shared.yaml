@@ -33,6 +33,9 @@ spec:
     helm:
       values: |
         project: "{{ .Values.shared.project }}"
+        {{- if .Values.shared.values }}
+        {{- toYaml .Values.shared.values | nindent 8 }}
+        {{- end }}
   destination:
     server: https://kubernetes.default.svc
     namespace: shared

@@ -1,0 +1,16 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: "grafana-private"
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  gateways:
+    - "shared/private"
+  hosts:
+    - "grafana.{{ .Values.global.domain }}"
+  http:
+    - route:
+        - destination:
+            host: "prometheus-operator-grafana"
+            port:
+              number: 80
