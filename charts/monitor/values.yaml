@@ -58,7 +58,6 @@ monitoring:
           userKey: admin-user # Key in secret for username (default: admin-user)
           passwordKey: admin-password # Key in secret for password (default: admin-password)
 
-        replicas: 0
         persistence:
           enabled: true
           storageClassName: local-path
