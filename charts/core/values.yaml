@@ -135,7 +135,7 @@ operators:
     chart: nuclei-operator
 
   longhorn:
-    enabled: true
+    enabled: false
     version: 1.10.1
     namespace: longhorn
     repoURL: https://charts.longhorn.io
