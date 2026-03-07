@@ -26,7 +26,7 @@ monitoring:
           storageSpec:
             volumeClaimTemplate:
               spec:
-                storageClassName: longhorn
+                storageClassName: local-path
                 accessModes: ["ReadWriteOnce"]
                 resources:
                   requests:
@@ -58,9 +58,10 @@ monitoring:
           userKey: admin-user # Key in secret for username (default: admin-user)
           passwordKey: admin-password # Key in secret for password (default: admin-password)
 
+        replicas: 0
         persistence:
           enabled: true
-          storageClassName: longhorn
+          storageClassName: local-path
           size: 10Gi
         resources:
           requests:
@@ -82,7 +83,7 @@ monitoring:
           storage:
             volumeClaimTemplate:
               spec:
-                storageClassName: longhorn
+                storageClassName: local-path
                 accessModes: ["ReadWriteOnce"]
                 resources:
                   requests:
