@@ -11,6 +11,7 @@ spec:
   imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie
   storage:
     size: 10Gi
+    storageClass: local-path
   managed:
     roles:
       - name: controller
