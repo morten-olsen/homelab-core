@@ -7,21 +7,22 @@ metadata:
 data:
   webhook.py: |
     #!/usr/bin/env python3
-    """Minimal Alertmanager webhook → ntfy bridge."""
+    """Minimal Alertmanager webhook -> ntfy bridge."""
     import json, http.server, urllib.request, os, sys
 
     NTFY_URL   = os.environ["NTFY_URL"]
     NTFY_TOPIC = os.environ["NTFY_TOPIC"]
 
-    PRIORITY = {"critical": "urgent", "warning": "default", "info": "min"}
-    EMOJI    = {"critical": "🔴", "warning": "⚠️"}
+    # ntfy numeric priorities
+    PRIORITY = {"critical": 5, "warning": 3, "info": 2}
+    TAGS     = {"critical": ["rotating_light"], "warning": ["warning"]}
+    EMOJI    = {"critical": "[CRIT]", "warning": "[WARN]", "resolved": "[OK]"}
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def log_message(self, fmt, *args):
             print(fmt % args, flush=True)
 
         def do_GET(self):
-            # Liveness probe
             self.send_response(200)
             self.end_headers()
 
@@ -39,12 +40,8 @@ data:
                 summary     = annotations.get("summary", alertname)
                 description = annotations.get("description", "")
 
-                if status == "resolved":
-                    emoji = "✅"
-                else:
-                    emoji = EMOJI.get(severity, "ℹ️")
-
-                title = f"{emoji} [{status.upper()}] {alertname}"
+                prefix = EMOJI.get("resolved" if status == "resolved" else severity, "[INFO]")
+                title  = f"{prefix} {alertname}"
                 if namespace:
                     title += f" ({namespace})"
 
@@ -54,14 +51,19 @@ data:
                 if description and description != summary:
                     message += f"\n\n{description}"
 
+                # Use JSON body to avoid HTTP header latin-1 encoding limits
+                payload = json.dumps({
+                    "topic":    NTFY_TOPIC,
+                    "title":    title,
+                    "message":  message,
+                    "priority": PRIORITY.get(severity, 3),
+                    "tags":     TAGS.get(severity, []),
+                }).encode()
+
                 req = urllib.request.Request(
-                    f"{NTFY_URL}/{NTFY_TOPIC}",
-                    data=message.encode(),
-                    headers={
-                        "Title":    title,
-                        "Priority": PRIORITY.get(severity, "default"),
-                        "Tags":     "rotating_light" if severity == "critical" else "warning",
-                    },
+                    NTFY_URL,
+                    data=payload,
+                    headers={"Content-Type": "application/json"},
                     method="POST",
                 )
                 try:
@@ -73,7 +75,7 @@ data:
             self.send_response(200)
             self.end_headers()
 
-    print(f"ntfy bridge listening :8080 → {NTFY_URL}/{NTFY_TOPIC}", flush=True)
+    print(f"ntfy bridge :8080 -> {NTFY_URL} topic={NTFY_TOPIC}", flush=True)
     http.server.HTTPServer(("", 8080), Handler).serve_forever()
 ---
 apiVersion: apps/v1
