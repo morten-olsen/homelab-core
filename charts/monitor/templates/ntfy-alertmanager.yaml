@@ -5,22 +5,76 @@ metadata:
   name: ntfy-alertmanager-config
   namespace: "{{ .Release.Namespace }}"
 data:
-  config.yml: |
-    log-level: info
-    listen-addr: ":8080"
-    ntfy:
-      base-url: "{{ .Values.ntfy.url }}"
-      topic: "{{ .Values.ntfy.topic }}"
-    labels:
-      order:
-        - severity
-        - alertname
-        - namespace
-        - instance
-    priority-map:
-      critical: urgent
-      warning: default
-      info: min
+  webhook.py: |
+    #!/usr/bin/env python3
+    """Minimal Alertmanager webhook → ntfy bridge."""
+    import json, http.server, urllib.request, os, sys
+
+    NTFY_URL   = os.environ["NTFY_URL"]
+    NTFY_TOPIC = os.environ["NTFY_TOPIC"]
+
+    PRIORITY = {"critical": "urgent", "warning": "default", "info": "min"}
+    EMOJI    = {"critical": "🔴", "warning": "⚠️"}
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, fmt, *args):
+            print(fmt % args, flush=True)
+
+        def do_GET(self):
+            # Liveness probe
+            self.send_response(200)
+            self.end_headers()
+
+        def do_POST(self):
+            n = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(n))
+            status = body.get("status", "firing")
+            for alert in body.get("alerts", []):
+                labels      = alert.get("labels", {})
+                annotations = alert.get("annotations", {})
+                alertname   = labels.get("alertname", "Unknown")
+                severity    = labels.get("severity", "info")
+                namespace   = labels.get("namespace", "")
+                instance    = labels.get("instance", "")
+                summary     = annotations.get("summary", alertname)
+                description = annotations.get("description", "")
+
+                if status == "resolved":
+                    emoji = "✅"
+                else:
+                    emoji = EMOJI.get(severity, "ℹ️")
+
+                title = f"{emoji} [{status.upper()}] {alertname}"
+                if namespace:
+                    title += f" ({namespace})"
+
+                message = summary
+                if instance and instance not in message:
+                    message += f"\n{instance}"
+                if description and description != summary:
+                    message += f"\n\n{description}"
+
+                req = urllib.request.Request(
+                    f"{NTFY_URL}/{NTFY_TOPIC}",
+                    data=message.encode(),
+                    headers={
+                        "Title":    title,
+                        "Priority": PRIORITY.get(severity, "default"),
+                        "Tags":     "rotating_light" if severity == "critical" else "warning",
+                    },
+                    method="POST",
+                )
+                try:
+                    urllib.request.urlopen(req, timeout=10)
+                    print(f"sent: {title}", flush=True)
+                except Exception as e:
+                    print(f"ntfy error: {e}", file=sys.stderr, flush=True)
+
+            self.send_response(200)
+            self.end_headers()
+
+    print(f"ntfy bridge listening :8080 → {NTFY_URL}/{NTFY_TOPIC}", flush=True)
+    http.server.HTTPServer(("", 8080), Handler).serve_forever()
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -37,19 +91,29 @@ spec:
       labels:
         app: ntfy-alertmanager
       annotations:
-        # No Istio sidecar — this is a lightweight internal bridge
         sidecar.istio.io/inject: "false"
     spec:
       containers:
         - name: ntfy-alertmanager
-          image: ghcr.io/alexbakker/ntfy-alertmanager:latest
-          args: ["-config", "/config/config.yml"]
+          image: python:3.12-alpine
+          command: ["python", "/app/webhook.py"]
+          env:
+            - name: NTFY_URL
+              value: "{{ .Values.ntfy.url }}"
+            - name: NTFY_TOPIC
+              value: "{{ .Values.ntfy.topic }}"
           ports:
             - containerPort: 8080
               name: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 30
           volumeMounts:
             - name: config
-              mountPath: /config
+              mountPath: /app
           resources:
             requests:
               cpu: 10m
