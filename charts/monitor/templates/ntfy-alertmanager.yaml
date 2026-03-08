@@ -1,0 +1,76 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ntfy-alertmanager-config
+  namespace: "{{ .Release.Namespace }}"
+data:
+  config.yml: |
+    log-level: info
+    listen-addr: ":8080"
+    ntfy:
+      base-url: "{{ .Values.ntfy.url }}"
+      topic: "{{ .Values.ntfy.topic }}"
+    labels:
+      order:
+        - severity
+        - alertname
+        - namespace
+        - instance
+    priority-map:
+      critical: urgent
+      warning: default
+      info: min
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ntfy-alertmanager
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ntfy-alertmanager
+  template:
+    metadata:
+      labels:
+        app: ntfy-alertmanager
+      annotations:
+        # No Istio sidecar — this is a lightweight internal bridge
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - name: ntfy-alertmanager
+          image: ghcr.io/alexbakker/ntfy-alertmanager:latest
+          args: ["-config", "/config/config.yml"]
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+      volumes:
+        - name: config
+          configMap:
+            name: ntfy-alertmanager-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ntfy-alertmanager
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  selector:
+    app: ntfy-alertmanager
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http

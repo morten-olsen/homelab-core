@@ -1,0 +1,57 @@
+---
+# Platform services — infrastructure and access
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: platform-services
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  interval: 60s
+  scrapeTimeout: 10s
+  module: http_2xx
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+    path: /probe
+  targets:
+    staticConfig:
+      static:
+        - http://argocd-server.argocd.svc.cluster.local
+        - http://prometheus-operator-grafana.monitoring.svc.cluster.local
+        - http://prometheus-operator-kube-p-alertmanager.monitoring.svc.cluster.local:9093
+        - http://pihole-http.shared.svc.cluster.local
+        - http://ntfy.prod.svc.cluster.local
+      labels:
+        probe_group: platform
+---
+# Application services — user-facing apps
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: application-services
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  interval: 60s
+  scrapeTimeout: 10s
+  module: http_2xx
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+    path: /probe
+  targets:
+    staticConfig:
+      static:
+        - http://jellyfin.prod.svc.cluster.local
+        - http://jellyfin-kids.prod.svc.cluster.local
+        - http://immich.prod.svc.cluster.local
+        - http://home-assistant.prod.svc.cluster.local
+        - http://vaultwarden.prod.svc.cluster.local
+        - http://mealie.prod.svc.cluster.local
+        - http://homebox.prod.svc.cluster.local
+        - http://miniflux.prod.svc.cluster.local
+        - http://n8n.prod.svc.cluster.local
+        - http://forgejo.prod.svc.cluster.local
+        - http://audiobookshelf.prod.svc.cluster.local
+        - http://komga.prod.svc.cluster.local
+        - http://readeck.prod.svc.cluster.local
+        - http://vikunja.prod.svc.cluster.local
+      labels:
+        probe_group: application

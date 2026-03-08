@@ -10,6 +10,10 @@ global:
       - ApplyOutOfSyncOnly=true
       - CreateNamespace=true
 
+ntfy:
+  url: http://ntfy.prod.svc.cluster.local
+  topic: homelab-alerts
+
 monitoring:
   prometheus-operator:
     enabled: true
@@ -47,17 +51,10 @@ monitoring:
       # Grafana configuration
       grafana:
         enabled: true
-        # Option 1: Use a plain text password (not recommended for production)
-        # adminPassword: admin
-
-        # Option 2: Use an existing Kubernetes secret (recommended)
-        # The secret is automatically created by External Secrets Operator (see grafanaAdminSecret below)
-        # Or create manually: kubectl create secret generic grafana-admin -n monitoring --from-literal=admin-user=admin --from-literal=admin-password=your-secure-password
         admin:
           existingSecret: grafana-admin
-          userKey: admin-user # Key in secret for username (default: admin-user)
-          passwordKey: admin-password # Key in secret for password (default: admin-password)
-
+          userKey: admin-user
+          passwordKey: admin-password
         persistence:
           enabled: true
           storageClassName: local-path
@@ -71,7 +68,6 @@ monitoring:
             memory: 512Mi
         service:
           type: ClusterIP
-        # Enable Istio sidecar injection
         podAnnotations:
           sidecar.istio.io/inject: "true"
 
@@ -94,6 +90,45 @@ monitoring:
             limits:
               cpu: 500m
               memory: 512Mi
+        config:
+          global:
+            resolve_timeout: 5m
+          inhibit_rules:
+            # Silence warnings when a critical fires for the same alert/namespace
+            - source_matchers:
+                - severity="critical"
+              target_matchers:
+                - severity="warning"
+              equal: [alertname, namespace]
+          route:
+            group_by: [alertname, namespace]
+            group_wait: 30s
+            group_interval: 5m
+            repeat_interval: 12h
+            receiver: "null"
+            routes:
+              # Watchdog is a canary alert to verify the pipeline — never page on it
+              - matchers:
+                  - alertname="Watchdog"
+                receiver: "null"
+              # InfoInhibitor is a synthetic alert used to suppress info-level alerts
+              - matchers:
+                  - alertname="InfoInhibitor"
+                receiver: "null"
+              - matchers:
+                  - severity="critical"
+                receiver: ntfy
+                repeat_interval: 1h
+              - matchers:
+                  - severity="warning"
+                receiver: ntfy
+                repeat_interval: 4h
+          receivers:
+            - name: "null"
+            - name: ntfy
+              webhook_configs:
+                - url: "http://ntfy-alertmanager.monitoring.svc.cluster.local:8080/hook"
+                  send_resolved: true
 
       # Node exporter
       nodeExporter:
@@ -108,7 +143,7 @@ monitoring:
         create: true
         rules:
           alertmanager: true
-          etcd: false # Disable if etcd is not exposed
+          etcd: false
           general: true
           k8s: true
           kubeApiserverAvailability: true
@@ -116,15 +151,16 @@ monitoring:
           kubeApiserverHistogram: true
           kubeApiserverSlos: true
           kubelet: true
-          kubeProxy: true
+          # k3s embeds kube-proxy, controller-manager, and scheduler — no separate pods/metrics
+          kubeProxy: false
           kubePrometheusGeneral: true
           kubePrometheusNodeRecording: true
           kubernetesApps: true
           kubernetesResources: true
           kubernetesStorage: true
           kubernetesSystem: true
-          kubeSchedulerAlerting: true
-          kubeSchedulerRecording: true
+          kubeSchedulerAlerting: false
+          kubeSchedulerRecording: false
           network: true
           node: true
           nodeExporterAlerting: true
@@ -132,6 +168,40 @@ monitoring:
           prometheus: true
           prometheusOperator: true
           time: true
+        # Disable specific noisy alerts not suitable for a single-node homelab
+        disabled:
+          KubeControllerManagerDown: true  # k3s embeds this
+          KubeSchedulerDown: true          # k3s embeds this
+          KubeProxyDown: true              # k3s has no kube-proxy pod
+          CPUThrottlingHigh: true          # fires constantly on JVM/interpreted workloads
+          KubePodNotReady: true            # replaced by homelab rule with patient window
+
+  blackbox-exporter:
+    enabled: true
+    version: "9.4.0"
+    namespace: monitoring
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: prometheus-blackbox-exporter
+    values:
+      fullnameOverride: blackbox-exporter
+      config:
+        modules:
+          http_2xx:
+            prober: http
+            timeout: 10s
+            http:
+              valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+              valid_status_codes: []  # defaults to 2xx
+              method: GET
+              follow_redirects: true
+              preferred_ip_protocol: ip4
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi
 
 resources:
   grafanaAdminSecret:

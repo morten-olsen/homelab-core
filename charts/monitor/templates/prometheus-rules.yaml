@@ -1,0 +1,128 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: homelab-rules
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  groups:
+    - name: homelab.node
+      rules:
+        - alert: NodeDiskWarning
+          expr: |
+            (
+              node_filesystem_avail_bytes{mountpoint="/", fstype!="tmpfs"}
+              / node_filesystem_size_bytes{mountpoint="/", fstype!="tmpfs"}
+            ) < 0.15
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node disk space low"
+            description: "Root filesystem has less than 15% free space. Consider cleaning up."
+
+        - alert: NodeDiskCritical
+          expr: |
+            (
+              node_filesystem_avail_bytes{mountpoint="/", fstype!="tmpfs"}
+              / node_filesystem_size_bytes{mountpoint="/", fstype!="tmpfs"}
+            ) < 0.05
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Node disk space critically low"
+            description: "Root filesystem has less than 5% free space. Immediate action required."
+
+        - alert: NodeMemoryPressure
+          expr: |
+            (
+              1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+            ) > 0.90
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node memory usage high"
+            description: "Memory usage has been above 90% for 15 minutes. May need to stop some workloads."
+
+        - alert: NodeHighLoad
+          expr: node_load15 > 6
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node load average high"
+            description: "15-minute load average has been above 6 for 15 minutes on a single-node cluster."
+
+    - name: homelab.pods
+      rules:
+        - alert: PodCrashLooping
+          expr: |
+            rate(kube_pod_container_status_restarts_total[15m]) * 60 * 15 > 3
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod crash-looping"
+            description: "A pod has restarted more than 3 times in the last 15 minutes."
+
+        - alert: PodStuckNotReady
+          expr: |
+            kube_pod_status_ready{condition="false", namespace!~"kube-system|argocd"}
+            * on(pod, namespace) group_left()
+            kube_pod_status_phase{phase="Running"} == 1
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod not ready for 30 minutes"
+            description: "A running pod has been failing its readiness probe for 30 minutes."
+
+    - name: homelab.storage
+      rules:
+        - alert: PVCAlmostFull
+          expr: |
+            (
+              kubelet_volume_stats_available_bytes
+              / kubelet_volume_stats_capacity_bytes
+            ) < 0.15
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "PVC almost full"
+            description: "A PVC in namespace has less than 15% free space. Consider expanding or cleaning up data."
+
+        - alert: PVCFull
+          expr: |
+            (
+              kubelet_volume_stats_available_bytes
+              / kubelet_volume_stats_capacity_bytes
+            ) < 0.03
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "PVC nearly full"
+            description: "A PVC has less than 3% free space. Writes may start failing."
+
+    - name: homelab.http
+      rules:
+        - alert: ServiceDown
+          expr: probe_success == 0
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Service unreachable"
+            description: "HTTP probe has been failing for more than 3 minutes."
+
+        - alert: ServiceSlowResponse
+          expr: probe_duration_seconds > 5
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Service responding slowly"
+            description: "HTTP probe has been taking more than 5 seconds for 10 minutes."
