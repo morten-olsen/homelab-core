@@ -115,6 +115,10 @@ monitoring:
               - matchers:
                   - alertname="InfoInhibitor"
                 receiver: "null"
+              # k3s embeds controller-manager and scheduler — these alerts always fire
+              - matchers:
+                  - alertname=~"KubeControllerManagerDown|KubeSchedulerDown|KubeProxyDown"
+                receiver: "null"
               - matchers:
                   - severity="critical"
                 receiver: ntfy
@@ -168,13 +172,14 @@ monitoring:
           prometheus: true
           prometheusOperator: true
           time: true
-        # Disable specific noisy alerts not suitable for a single-node homelab
+        # Disable specific noisy alerts not suitable for a single-node homelab.
+        # Note: only disable individual alerts here if their PrometheusRule group
+        # contains OTHER alerts too — otherwise the group becomes rules:null which
+        # is invalid. For single-alert groups (controller-manager, scheduler, proxy)
+        # use Alertmanager null routing instead (see alertmanager.config.route.routes).
         disabled:
-          KubeControllerManagerDown: true  # k3s embeds this
-          KubeSchedulerDown: true          # k3s embeds this
-          KubeProxyDown: true              # k3s has no kube-proxy pod
-          CPUThrottlingHigh: true          # fires constantly on JVM/interpreted workloads
-          KubePodNotReady: true            # replaced by homelab rule with patient window
+          CPUThrottlingHigh: true  # fires constantly on JVM/interpreted workloads
+          KubePodNotReady: true    # replaced by homelab rule with patient window
 
   blackbox-exporter:
     enabled: true
