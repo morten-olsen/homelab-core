@@ -1,0 +1,28 @@
+{{- with .Values.blackboxExporter }}
+{{- if .enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: blackbox-exporter
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: monitoring
+    server: https://kubernetes.default.svc
+  project: {{ default $.Values.global.project $.Values.project }}
+  source:
+    repoURL: {{ .repoURL }}
+    targetRevision: {{ .version | quote }}
+    chart: {{ .chart }}
+    {{- if .values }}
+    helm:
+      values: |
+        {{- .values | toYaml | nindent 8 }}
+    {{- end }}
+  syncPolicy:
+    {{- toYaml $.Values.global.syncPolicy | nindent 4 }}
+{{- end }}
+{{- end }}

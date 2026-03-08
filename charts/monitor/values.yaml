@@ -181,32 +181,31 @@ monitoring:
           CPUThrottlingHigh: true  # fires constantly on JVM/interpreted workloads
           KubePodNotReady: true    # replaced by homelab rule with patient window
 
-  blackbox-exporter:
-    enabled: true
-    version: "9.4.0"
-    namespace: monitoring
-    repoURL: https://prometheus-community.github.io/helm-charts
-    chart: prometheus-blackbox-exporter
-    values:
-      fullnameOverride: blackbox-exporter
-      config:
-        modules:
-          http_2xx:
-            prober: http
-            timeout: 10s
-            http:
-              valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
-              valid_status_codes: []  # defaults to 2xx
-              method: GET
-              follow_redirects: true
-              preferred_ip_protocol: ip4
-      resources:
-        requests:
-          cpu: 50m
-          memory: 64Mi
-        limits:
-          cpu: 200m
-          memory: 128Mi
+blackboxExporter:
+  enabled: true
+  version: "9.4.0"
+  repoURL: https://prometheus-community.github.io/helm-charts
+  chart: prometheus-blackbox-exporter
+  values:
+    fullnameOverride: blackbox-exporter
+    config:
+      modules:
+        http_2xx:
+          prober: http
+          timeout: 10s
+          http:
+            valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+            valid_status_codes: []  # defaults to 2xx
+            method: GET
+            follow_redirects: true
+            preferred_ip_protocol: ip4
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
 
 resources:
   grafanaAdminSecret:
