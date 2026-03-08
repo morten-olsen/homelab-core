@@ -40,6 +40,8 @@ monitoring:
           podMonitorSelectorNilUsesHelmValues: false
           ruleSelectorNilUsesHelmValues: false
           probeSelectorNilUsesHelmValues: false
+          # Watch all namespaces for Probe CRDs (apps live in prod, prod-containarr, etc.)
+          probeNamespaceSelector: {}
           # Resource limits
           resources:
             requests:
