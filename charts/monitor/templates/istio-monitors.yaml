@@ -1,0 +1,40 @@
+---
+# Scrape istiod control-plane metrics (port 15014)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: istiod
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    release: prometheus-operator
+spec:
+  namespaceSelector:
+    matchNames:
+      - istio-system
+  selector:
+    matchLabels:
+      app: istiod
+  endpoints:
+    - port: http-monitoring
+      interval: 30s
+      path: /metrics
+---
+# Scrape ingress gateway Envoy metrics (container port 15090, not on Service)
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: istio-gateway
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    release: prometheus-operator
+spec:
+  namespaceSelector:
+    matchNames:
+      - istio-ingress
+  selector:
+    matchLabels:
+      app: gateway
+  podMetricsEndpoints:
+    - port: http-envoy-prom
+      interval: 15s
+      path: /metrics
