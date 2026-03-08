@@ -5,6 +5,8 @@ kind: Probe
 metadata:
   name: platform-services
   namespace: "{{ .Release.Namespace }}"
+  labels:
+    release: prometheus-operator
 spec:
   interval: 60s
   scrapeTimeout: 10s
@@ -29,6 +31,8 @@ kind: Probe
 metadata:
   name: application-services
   namespace: "{{ .Release.Namespace }}"
+  labels:
+    release: prometheus-operator
 spec:
   interval: 60s
   scrapeTimeout: 10s
