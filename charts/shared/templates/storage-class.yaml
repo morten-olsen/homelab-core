@@ -1,1 +1,72 @@
-# Longhorn storage classes removed — storage migrated to local-path
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-path
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: rancher.io/local-path
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-path-config
+  namespace: kube-system
+data:
+  config.json: |-
+    {
+      "nodePathMap":[
+        {
+          "node":"DEFAULT_PATH_FOR_NON_LISTED_NODES",
+          "paths":["/var/lib/rancher/k3s/storage"]
+        }
+      ]
+    }
+  setup: |-
+    #!/bin/sh
+    set -e
+
+    if [ -z "${PVC_NAMESPACE:-}" ] || [ -z "${PVC_NAME:-}" ]; then
+      if [ -n "${VOL_DIR:-}" ]; then
+        VOL_BASENAME=$(basename "$VOL_DIR")
+        NAMESPACE_PART=$(echo "$VOL_BASENAME" | cut -d'_' -f2)
+        NAME_PART=$(echo "$VOL_BASENAME" | cut -d'_' -f3-)
+        if [ -n "$NAMESPACE_PART" ] && [ -n "$NAME_PART" ]; then
+          PVC_NAMESPACE="$NAMESPACE_PART"
+          PVC_NAME="$NAME_PART"
+        fi
+      fi
+    fi
+
+    if [ -z "${PVC_NAMESPACE:-}" ] || [ -z "${PVC_NAME:-}" ]; then
+      echo "Error: Could not determine PVC_NAMESPACE or PVC_NAME"
+      echo "VOL_DIR: ${VOL_DIR:-not set}"
+      env | grep -E "(PVC_|PV_|VOL_)" || echo "  (none found)"
+      exit 1
+    fi
+
+    PRETTY_PATH="/var/lib/rancher/k3s/storage/pvc/${PVC_NAMESPACE}/${PVC_NAME}"
+    mkdir -p "$PRETTY_PATH"
+    chmod 777 "$PRETTY_PATH"
+    ln -s "$PRETTY_PATH" "$VOL_DIR"
+  teardown: |-
+    #!/bin/sh
+    set -eu
+
+    if [ -L "$VOL_DIR" ]; then
+      PRETTY_PATH=$(readlink "$VOL_DIR")
+      rm "$VOL_DIR"
+    fi
+  helperPod.yaml: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: helper-pod
+    spec:
+      containers:
+      - name: helper-pod
+        image: busybox
+        imagePullPolicy: IfNotPresent
