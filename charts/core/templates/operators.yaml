@@ -1,0 +1,6 @@
+{{- range $name, $_ := .Values.operators }}
+{{- $out := include "homelab-core.operator" (list $name $) | trim }}
+{{- if $out }}
+{{ $out }}
+{{- end }}
+{{- end }}
