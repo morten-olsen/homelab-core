@@ -179,3 +179,12 @@ operators:
     namespace: trivy
     repoURL: https://aquasecurity.github.io/helm-charts
     chart: trivy-operator
+    values:
+      serviceMonitor:
+        enabled: true
+      service:
+        headless: false
+      trivy:
+        resources:
+          limits:
+            memory: 1Gi
