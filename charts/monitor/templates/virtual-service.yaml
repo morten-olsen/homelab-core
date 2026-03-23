@@ -14,3 +14,20 @@ spec:
             host: "prometheus-operator-grafana"
             port:
               number: 80
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: "falco-private"
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  gateways:
+    - "shared/private"
+  hosts:
+    - "falco.{{ .Values.global.domain }}"
+  http:
+    - route:
+        - destination:
+            host: "falco-falcosidekick-ui.falco.svc.cluster.local"
+            port:
+              number: 2802

@@ -136,6 +136,48 @@ spec:
             summary: "Backup sync taking over 1 hour"
             description: '{{ "{{" }} $labels.obj_namespace {{ "}}" }}/{{ "{{" }} $labels.obj_name {{ "}}" }} sync duration p99 exceeds 1 hour.'
 
+    - name: homelab.falco
+      rules:
+        - alert: FalcoCriticalAlert
+          expr: |
+            rate(falcosecurity_falco_rules_matches_total{priority=~"0|1|2"}[5m]) > 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Falco critical/high-priority rule triggered"
+            description: "Falco has detected critical or emergency-level runtime security events. Investigate immediately."
+
+        - alert: FalcoWarningAlert
+          expr: |
+            rate(falcosecurity_falco_rules_matches_total{priority=~"3|4"}[10m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Falco warning-level rule triggered"
+            description: "Falco has detected warning or error-level runtime security events."
+
+        - alert: FalcoEventDrops
+          expr: |
+            rate(falcosecurity_scap_n_drops_total[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Falco dropping kernel events"
+            description: "Falco is dropping kernel events, which means some activity may not be monitored. Consider tuning rules or increasing resources."
+
+        - alert: FalcoDown
+          expr: |
+            absent(up{job=~".*falco.*"} == 1)
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Falco is not running"
+            description: "Falco metrics target has been down for 10 minutes. Runtime security monitoring is inactive."
+
     - name: homelab.http
       rules:
         - alert: ServiceDown
