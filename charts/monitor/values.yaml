@@ -21,6 +21,11 @@ monitoring:
     namespace: monitoring
     repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
+    ignoreDifferences:
+      - group: monitoring.coreos.com
+        kind: Alertmanager
+        jqPathExpressions:
+          - .spec.hostNetwork
     values:
       # Prometheus configuration
       prometheus:
