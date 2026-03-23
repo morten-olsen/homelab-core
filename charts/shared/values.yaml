@@ -23,7 +23,7 @@ resources:
 
   gateway:
     enabled: true
-    version: 1.28.2
+    version: 1.29.1
     namespace: istio-ingress
 
   gateways:
