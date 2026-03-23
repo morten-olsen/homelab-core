@@ -1,3 +1,6 @@
+{{- if .Values.resources.pihole.enabled -}}
+{{- $pihole := .Values.resources.pihole -}}
+{{- $global := .Values.global -}}
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
@@ -5,10 +8,10 @@ metadata:
 spec:
   accessModes:
     - 'ReadWriteOnce'
-  storageClassName: local-path
+  storageClassName: {{ $pihole.storage.storageClassName }}
   resources:
     requests:
-      storage: '1Gi'
+      storage: {{ $pihole.storage.size | quote }}
 
 ---
 apiVersion: apps/v1
@@ -31,14 +34,14 @@ spec:
     spec:
       containers:
         - name: "pihole"
-          image: "{{ .Values.resources.pihole.image.repository }}:{{ .Values.resources.pihole.image.tag }}"
-          imagePullPolicy: "{{ .Values.resources.pihole.image.pullPolicy }}"
+          image: "{{ $pihole.image.repository }}:{{ $pihole.image.tag }}"
+          imagePullPolicy: "{{ $pihole.image.pullPolicy }}"
           ports:
             - containerPort: 80
               name: http
           env:
             - name: TZ
-              value: "Europe/Amsterdam" # TODO: fix
+              value: {{ $global.timezone | quote }}
             - name: FTLCONF_dns_listeningMode
               value: 'ALL'
             - name: FTLCONF_webserver_api_password
@@ -46,6 +49,10 @@ spec:
                 secretKeyRef:
                   name: pihole-password
                   key: password
+          {{- with $pihole.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /etc/pihole
               name: data
@@ -85,12 +92,11 @@ spec:
     - "{{ .Release.Name }}/private"
     - mesh
   hosts:
-    - "{{ .Values.resources.pihole.subdomain }}.{{ .Values.global.domain }}"
+    - "{{ $pihole.subdomain }}.{{ $global.domain }}"
   http:
     - route:
         - destination:
             host: "pihole-http"
             port:
               number: 80
-
-
+{{- end }}

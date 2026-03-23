@@ -1,3 +1,5 @@
+{{- if .Values.resources.piholeDns.enabled -}}
+{{- $dns := .Values.resources.piholeDns -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -18,8 +20,8 @@ spec:
     spec:
       containers:
         - name: "pihole-dns"
-          image: "{{ index .Values.resources "pihole-dns" "image" "repository" }}:{{ index .Values.resources "pihole-dns" "image" "tag" }}"
-          imagePullPolicy: "{{ index .Values.resources "pihole-dns" "image" "pullPolicy" }}"
+          image: "{{ $dns.image.repository }}:{{ $dns.image.tag }}"
+          imagePullPolicy: "{{ $dns.image.pullPolicy }}"
           ports:
             - containerPort: 7100
               name: http
@@ -63,18 +65,12 @@ metadata:
   name: private-dns
   namespace: "{{ .Release.Namespace }}"
 spec:
-  # Server URL for the DNS provider webhook service
   server: "http://pihole-dns-http.{{ .Release.Namespace }}.svc.cluster.local:7100"
-  
-  # Optional: Default TTL for records using this DNSClass
   defaultTTL: 300
-  
-  # Optional: Connection timeout in seconds
   timeoutSeconds: 30
-  
-  # Optional: HMAC-based authentication for request integrity verification
   hmacAuth:
     secretRef:
       name: pihole-dns-hmac-secret
       namespace: "{{ .Release.Namespace }}"
       key: hmac-secret
+{{- end }}

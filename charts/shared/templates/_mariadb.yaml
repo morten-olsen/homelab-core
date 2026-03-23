@@ -1,3 +1,7 @@
+{{- /* Reusable MariaDB instance template. Not included by any template in this chart
+       — available for future use when a service needs a MariaDB database. The
+       mariadb-secrets.yaml generates the root password referenced here. */ -}}
+{{- define "homelab-shared.mariadb" -}}
 apiVersion: k8s.mariadb.com/v1alpha1
 kind: MariaDB
 metadata:
@@ -29,3 +33,4 @@ spec:
       memory: 128Mi
     limits:
       memory: 2Gi
+{{- end }}

@@ -1,3 +1,5 @@
+{{- /* Volsync backup sources. Generates a shared restic secret (reflected to all
+       namespaces via Reflector) and a ReplicationSource per backup target. */ -}}
 {{- if .Values.resources.backups.enabled }}
 {{- $backup := .Values.resources.backups }}
 ---

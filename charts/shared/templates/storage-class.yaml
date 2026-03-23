@@ -1,3 +1,7 @@
+{{- /* Manages the k3s local-path StorageClass and its ConfigMap. The setup script
+       creates human-readable symlinks at /var/lib/rancher/k3s/storage/pvc/<ns>/<name>
+       so PVC data is easy to find on the host filesystem. */ -}}
+{{- if .Values.resources.storageClass.enabled -}}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -70,3 +74,4 @@ data:
       - name: helper-pod
         image: busybox
         imagePullPolicy: IfNotPresent
+{{- end }}

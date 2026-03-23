@@ -15,13 +15,13 @@ spec:
   dnsNames:
   - "*.{{ $global.domain }}"
   - "{{ $global.domain }}"
-{{- if index $global "additional-domains" }}
-{{- range index $global "additional-domains" }}
+{{- if $global.additionalDomains }}
+{{- range $global.additionalDomains }}
   - "{{ . }}"
 {{- end }}
 {{- end }}
   secretTemplate:
     annotations:
-      reflector.v1beta1.emberstack.com/reflection-allowed: "true"
-      reflector.v1beta1.emberstack.com/reflection-allowed-namespaces: "istio-ingress"
+      reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+      reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "istio-ingress"
 {{- end }}

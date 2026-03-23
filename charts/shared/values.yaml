@@ -1,8 +1,10 @@
 global:
   project: shared
   domain: olsen.cloud
-  additional-domains: ["*.coder.olsen.cloud"]
+  additionalDomains:
+    - "*.coder.olsen.cloud"
   email:
+  timezone: Europe/Amsterdam
   acme: prod
   syncPolicy:
     automated:
@@ -14,18 +16,7 @@ global:
       - CreateNamespace=true
 
 resources:
-  pihole:
-    subdomain: pihole
-    image:
-      repository: pihole/pihole
-      tag: latest
-      pullPolicy: IfNotPresent
-
-  pihole-dns:
-    image:
-      repository: ghcr.io/morten-olsen/homelab-dns-pihole
-      tag: latest
-      pullPolicy: IfNotPresent
+  # -- Networking -----------------------------------------------------------
 
   ingressClass:
     enabled: true
@@ -34,6 +25,18 @@ resources:
     enabled: true
     version: 1.28.2
     namespace: istio-ingress
+
+  gateways:
+    public:
+      enabled: true
+      httpPort: 18080
+      httpsPort: 18443
+    private:
+      enabled: true
+      httpPort: 80
+      httpsPort: 443
+
+  # -- TLS ------------------------------------------------------------------
 
   certIssuer:
     enabled: true
@@ -44,15 +47,62 @@ resources:
     enabled: true
     secretName: wildcard-tls
 
+  # -- Storage --------------------------------------------------------------
+
+  storageClass:
+    enabled: true
+
+  # -- DNS & Ad Blocking ----------------------------------------------------
+
+  pihole:
+    enabled: true
+    subdomain: pihole
+    image:
+      repository: pihole/pihole
+      tag: latest
+      pullPolicy: IfNotPresent
+    storage:
+      size: 1Gi
+      storageClassName: local-path
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  piholeDns:
+    enabled: true
+    image:
+      repository: ghcr.io/morten-olsen/homelab-dns-pihole
+      tag: latest
+      pullPolicy: IfNotPresent
+
+  # -- Databases ------------------------------------------------------------
+
   postgresCluster:
     enabled: true
+    instances: 1
+    image: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie
+    storage:
+      size: 10Gi
+      storageClassName: local-path
+
+  mariadb:
+    enabled: true
+
+  # -- Authentication -------------------------------------------------------
 
   authentik:
     enabled: true
     subdomain: auth
+    image: ghcr.io/goauthentik/server:2026.2.1
     tls:
       enabled: true
       secretName: wildcard-tls
+
+  # -- Backups --------------------------------------------------------------
 
   backups:
     enabled: true
@@ -74,13 +124,3 @@ resources:
           daily: 7
           weekly: 4
           monthly: 3
-
-  gateways:
-    public:
-      enabled: true
-      httpPort: 18080
-      httpsPort: 18443
-    private:
-      enabled: true
-      httpPort: 80
-      httpsPort: 443

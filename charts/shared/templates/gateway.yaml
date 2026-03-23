@@ -1,6 +1,10 @@
+{{- /* Deploys the Istio gateway pod via ArgoCD Application. This single gateway
+       handles both public and private traffic on separate port pairs. The Gateway
+       CRs (public-gateway.yaml, private-gateway.yaml) bind TLS to these ports. */ -}}
 {{- if .Values.resources.gateway.enabled -}}
 {{- $global := .Values.global -}}
 {{- $gateway := .Values.resources.gateway -}}
+{{- $gateways := .Values.resources.gateways -}}
 {{- $syncPolicy := default $global.syncPolicy $gateway.syncPolicy -}}
 ---
 apiVersion: argoproj.io/v1alpha1
@@ -28,20 +32,20 @@ spec:
               targetPort: 15021
               protocol: TCP
             - name: http2
-              port: 80
-              targetPort: 80
+              port: {{ $gateways.private.httpPort }}
+              targetPort: {{ $gateways.private.httpPort }}
               protocol: TCP
             - name: https
-              port: 443
-              targetPort: 443
+              port: {{ $gateways.private.httpsPort }}
+              targetPort: {{ $gateways.private.httpsPort }}
               protocol: TCP
             - name: http-public
-              port: 18080
-              targetPort: 18080
+              port: {{ $gateways.public.httpPort }}
+              targetPort: {{ $gateways.public.httpPort }}
               protocol: TCP
             - name: https-public
-              port: 18443
-              targetPort: 18443
+              port: {{ $gateways.public.httpsPort }}
+              targetPort: {{ $gateways.public.httpsPort }}
               protocol: TCP
   syncPolicy:
     {{- toYaml $syncPolicy | nindent 4 }}

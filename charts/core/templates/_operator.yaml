@@ -1,3 +1,8 @@
+{{- /* Reusable template that generates an ArgoCD Application for a single operator.
+       Called once per entry in values.operators by operators.yaml. Each operator entry
+       must provide: enabled, version, namespace, repoURL, and either chart or path.
+       Optional fields: values (helm overrides), syncPolicy (falls back to global),
+       ignoreDifferences (for webhook configs that drift). */ -}}
 {{- define "homelab-core.operator" -}}
 {{- $name := first . -}}
 {{- $root := last . -}}
