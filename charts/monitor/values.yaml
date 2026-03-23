@@ -17,7 +17,7 @@ ntfy:
 monitoring:
   prometheus-operator:
     enabled: true
-    version: 80.13.0
+    version: 80.14.4
     namespace: monitoring
     repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
@@ -186,7 +186,7 @@ monitoring:
 
 blackboxExporter:
   enabled: true
-  version: "9.4.0"
+  version: "9.8.0"
   repoURL: https://prometheus-community.github.io/helm-charts
   chart: prometheus-blackbox-exporter
   values:
