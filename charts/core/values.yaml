@@ -55,14 +55,14 @@ operators:
 
   mariadb-crds:
     enabled: true
-    version: 25.10.3
+    version: 25.10.4
     namespace: mariadb
     repoURL: https://helm.mariadb.com/mariadb-operator
     chart: mariadb-operator-crds
 
   mariadb-operator:
     enabled: true
-    version: 25.10.3
+    version: 25.10.4
     namespace: mariadb
     repoURL: https://helm.mariadb.com/mariadb-operator
     chart: mariadb-operator
