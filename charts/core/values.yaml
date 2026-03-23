@@ -159,12 +159,12 @@ operators:
     repoURL: oci://ghcr.io/emberstack/helm-charts/reflector
     path: .
 
-  releader:
-    enabled: false
+  reloader:
+    enabled: true
     version: 2.2.7
-    namespace: releader
+    namespace: reloader
     repoURL: https://stakater.github.io/stakater-charts
-    chart: releader
+    chart: reloader
 
   sealed-secrets:
     enabled: true
