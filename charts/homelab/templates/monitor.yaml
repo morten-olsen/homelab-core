@@ -51,3 +51,5 @@ spec:
       labels:
         istio.io/rev: default
         istio-injection: enabled
+      annotations:
+        volsync.backube/privileged-movers: "true"

@@ -210,6 +210,20 @@ blackboxExporter:
         cpu: 200m
         memory: 128Mi
 
+backups:
+  enabled: true
+  nfs:
+    server: 192.168.20.106
+    path: /mnt/HDD/k8s/backups
+  sources:
+    grafana:
+      pvcName: prometheus-operator-grafana
+      schedule: "0 2 * * *"
+      retain:
+        daily: 7
+        weekly: 4
+        monthly: 3
+
 resources:
   grafanaAdminSecret:
     enabled: true

@@ -188,3 +188,10 @@ operators:
         resources:
           limits:
             memory: 1Gi
+
+  volsync:
+    enabled: true
+    version: 0.15.0
+    namespace: volsync-system
+    repoURL: https://backube.github.io/helm-charts
+    chart: volsync

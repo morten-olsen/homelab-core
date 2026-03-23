@@ -1,0 +1,76 @@
+{{- if .Values.resources.backups.enabled }}
+{{- $backup := .Values.resources.backups }}
+---
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: Password
+metadata:
+  name: volsync-restic-password-generator
+spec:
+  length: 64
+  allowRepeat: true
+  noUpper: false
+  secretKeys:
+    - password
+
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: volsync-restic
+  namespace: "{{ .Release.Namespace }}"
+  annotations:
+    reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+    reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+    reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: ""
+spec:
+  refreshInterval: "0"
+  target:
+    name: volsync-restic
+    creationPolicy: Owner
+    template:
+      type: Opaque
+      engineVersion: v2
+      metadata:
+        annotations:
+          reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+          reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+          reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: ""
+      data:
+        RESTIC_REPOSITORY: /mnt/backup
+        RESTIC_PASSWORD: "{{ "{{" }} .password {{ "}}" }}"
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: Password
+          name: volsync-restic-password-generator
+
+{{- range $name, $source := $backup.sources }}
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: backup-{{ $name }}
+  namespace: {{ $.Release.Namespace | quote }}
+spec:
+  sourcePVC: {{ $source.pvcName }}
+  trigger:
+    schedule: {{ $source.schedule | quote }}
+  restic:
+    pruneIntervalDays: 7
+    repository: volsync-restic
+    copyMethod: Direct
+    cacheCapacity: 1Gi
+    moverSecurityContext:
+      runAsUser: 0
+      runAsGroup: 0
+    moverVolumes:
+      - mountPath: backup
+        volumeSource:
+          nfs:
+            server: {{ $backup.nfs.server }}
+            path: {{ $backup.nfs.path }}
+    retain:
+      {{- toYaml $source.retain | nindent 6 }}
+{{- end }}
+{{- end }}

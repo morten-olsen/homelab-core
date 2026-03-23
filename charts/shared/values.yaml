@@ -54,6 +54,27 @@ resources:
       enabled: true
       secretName: wildcard-tls
 
+  backups:
+    enabled: true
+    nfs:
+      server: 192.168.20.106
+      path: /mnt/HDD/k8s/backups
+    sources:
+      pihole:
+        pvcName: pihole-data
+        schedule: "0 2 * * *"
+        retain:
+          daily: 7
+          weekly: 4
+          monthly: 3
+      postgres:
+        pvcName: postgres-cluster-1
+        schedule: "0 3 * * *"
+        retain:
+          daily: 7
+          weekly: 4
+          monthly: 3
+
   gateways:
     public:
       enabled: true

@@ -1,0 +1,31 @@
+{{- if .Values.backups.enabled }}
+{{- $backup := .Values.backups }}
+{{- range $name, $source := $backup.sources }}
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: backup-{{ $name }}
+  namespace: {{ $.Release.Namespace | quote }}
+spec:
+  sourcePVC: {{ $source.pvcName }}
+  trigger:
+    schedule: {{ $source.schedule | quote }}
+  restic:
+    pruneIntervalDays: 7
+    repository: volsync-restic
+    copyMethod: Direct
+    cacheCapacity: 1Gi
+    moverSecurityContext:
+      runAsUser: 0
+      runAsGroup: 0
+    moverVolumes:
+      - mountPath: backup
+        volumeSource:
+          nfs:
+            server: {{ $backup.nfs.server }}
+            path: {{ $backup.nfs.path }}
+    retain:
+      {{- toYaml $source.retain | nindent 6 }}
+{{- end }}
+{{- end }}
