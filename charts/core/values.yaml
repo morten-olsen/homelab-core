@@ -147,7 +147,7 @@ operators:
 
   postgres:
     enabled: true
-    version: 0.0.14
+    version: 0.0.18
     namespace: postgres
     repoURL: https://mortenolsen.pro/homelab-postgres-operator
     chart: postgres-operator
