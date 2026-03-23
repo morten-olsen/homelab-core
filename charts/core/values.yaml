@@ -10,6 +10,28 @@ global:
       - CreateNamespace=true
 
 operators:
+  argocd:
+    enabled: true
+    version: 9.4.15
+    namespace: argocd
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-cd
+    values:
+      configs:
+        params:
+          server.insecure: true
+      server:
+        service:
+          type: NodePort
+          nodePortHttp: 30080
+          nodePortHttps: 30443
+      repoServer:
+        livenessProbe:
+          timeoutSeconds: 10
+          initialDelaySeconds: 30
+        readinessProbe:
+          timeoutSeconds: 10
+
   authentik:
     enabled: true
     version: 0.0.15

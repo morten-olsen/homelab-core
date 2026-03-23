@@ -15,7 +15,7 @@ helm repo update
 
 helm upgrade --install argocd argo/argo-cd \
   --namespace argocd \
-  --version 9.2.1 \
+  --version 9.4.15 \
   --set configs.params.server.insecure=true \
   --set server.service.type=NodePort \
   --set server.service.nodePortHttp=30080 \
