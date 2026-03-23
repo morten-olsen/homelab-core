@@ -195,3 +195,6 @@ operators:
     namespace: volsync-system
     repoURL: https://backube.github.io/helm-charts
     chart: volsync
+    values:
+      metrics:
+        disableAuth: true

@@ -107,6 +107,35 @@ spec:
             summary: "PVC nearly full"
             description: "A PVC has less than 3% free space. Writes may start failing."
 
+    - name: homelab.backups
+      rules:
+        - alert: BackupMissedSchedule
+          expr: volsync_missed_intervals_total > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Backup missed scheduled run"
+            description: '{{ "{{" }} $labels.obj_namespace {{ "}}" }}/{{ "{{" }} $labels.obj_name {{ "}}" }} has missed {{ "{{" }} $value {{ "}}" }} scheduled backup intervals.'
+
+        - alert: BackupOutOfSync
+          expr: volsync_volume_out_of_sync == 1
+          for: 6h
+          labels:
+            severity: critical
+          annotations:
+            summary: "Backup out of sync for over 6 hours"
+            description: '{{ "{{" }} $labels.obj_namespace {{ "}}" }}/{{ "{{" }} $labels.obj_name {{ "}}" }} has not completed a successful sync in over 6 hours.'
+
+        - alert: BackupSlowSync
+          expr: volsync_sync_duration_seconds{quantile="0.99"} > 3600
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Backup sync taking over 1 hour"
+            description: '{{ "{{" }} $labels.obj_namespace {{ "}}" }}/{{ "{{" }} $labels.obj_name {{ "}}" }} sync duration p99 exceeds 1 hour.'
+
     - name: homelab.http
       rules:
         - alert: ServiceDown

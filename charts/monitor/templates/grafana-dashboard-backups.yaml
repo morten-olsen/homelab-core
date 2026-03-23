@@ -1,0 +1,233 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-backups
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  backups.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "title": "Volumes Out of Sync",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "targets": [
+            {
+              "expr": "count(volsync_volume_out_of_sync == 1) or vector(0)",
+              "legendFormat": "Out of Sync"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 3 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            }
+          }
+        },
+        {
+          "title": "Total Missed Intervals",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "targets": [
+            {
+              "expr": "sum(volsync_missed_intervals_total) or vector(0)",
+              "legendFormat": "Missed"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 5 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            }
+          }
+        },
+        {
+          "title": "Total Backup Sources",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "targets": [
+            {
+              "expr": "count(volsync_volume_out_of_sync) or vector(0)",
+              "legendFormat": "Sources"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "fixedColor": "blue", "mode": "fixed" }
+            }
+          }
+        },
+        {
+          "title": "Sources In Sync",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "targets": [
+            {
+              "expr": "count(volsync_volume_out_of_sync == 0) or vector(0)",
+              "legendFormat": "In Sync"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "fixedColor": "green", "mode": "fixed" }
+            }
+          }
+        },
+        {
+          "title": "Sync Status by Volume",
+          "type": "table",
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "targets": [
+            {
+              "expr": "volsync_volume_out_of_sync",
+              "format": "table",
+              "instant": true,
+              "legendFormat": ""
+            }
+          ],
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "container": true,
+                  "endpoint": true,
+                  "instance": true,
+                  "job": true,
+                  "namespace": true,
+                  "pod": true,
+                  "service": true,
+                  "role": false,
+                  "method": false
+                },
+                "renameByName": {
+                  "obj_name": "Backup Source",
+                  "obj_namespace": "Namespace",
+                  "role": "Role",
+                  "method": "Method",
+                  "Value": "Out of Sync"
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  { "field": "Out of Sync", "desc": true }
+                ]
+              }
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Out of Sync" },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": { "mode": "basic", "type": "color-background" }
+                  },
+                  {
+                    "id": "mappings",
+                    "value": [
+                      { "options": { "0": { "text": "In Sync", "color": "green" } }, "type": "value" },
+                      { "options": { "1": { "text": "Out of Sync", "color": "red" } }, "type": "value" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "title": "Sync Duration (p50)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "targets": [
+            {
+              "expr": "volsync_sync_duration_seconds{quantile=\"0.5\"}",
+              "legendFormat": "{{ "{{" }} obj_namespace {{ "}}" }}/{{ "{{" }} obj_name {{ "}}" }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "bars",
+                "fillOpacity": 50,
+                "stacking": { "mode": "none" },
+                "spanNulls": true
+              }
+            }
+          }
+        },
+        {
+          "title": "Missed Intervals Over Time",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "targets": [
+            {
+              "expr": "increase(volsync_missed_intervals_total[1h])",
+              "legendFormat": "{{ "{{" }} obj_namespace {{ "}}" }}/{{ "{{" }} obj_name {{ "}}" }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "bars",
+                "fillOpacity": 80,
+                "stacking": { "mode": "normal" },
+                "spanNulls": true
+              },
+              "color": { "mode": "palette-classic" }
+            }
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["backups", "volsync"],
+      "templating": {
+        "list": [
+          {
+            "current": { "selected": false, "text": "Prometheus", "value": "prometheus" },
+            "hide": 2,
+            "name": "DS_PROMETHEUS",
+            "type": "datasource",
+            "query": "prometheus"
+          }
+        ]
+      },
+      "time": { "from": "now-24h", "to": "now" },
+      "title": "Backup Health",
+      "uid": "volsync-backup-health"
+    }
