@@ -117,6 +117,16 @@ operators:
             source: syscall
             tags: [container, k8s, network, mitre_discovery]
             append: false
+          - rule: Drop and execute new binary in container
+            override:
+              exceptions: append
+            exceptions:
+              - name: known_images
+                fields: [container.image.repository]
+                comps: [=]
+                values:
+                  - [docker.io/pihole/pihole]
+                  - [codeberg.org/forgejo/forgejo]
       falcosidekick:
         enabled: true
         webui:
