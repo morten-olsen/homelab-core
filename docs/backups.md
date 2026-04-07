@@ -22,10 +22,10 @@ mover pod on the configured schedule that:
    snapshots to `/backup/`
 4. Runs `restic forget` + `restic prune` per the retention policy
 
-All backups across all namespaces share a **single restic repository** at
-`/backup`. Snapshots are scoped by hostname (the ReplicationSource name), so
-each PVC's backups are independently addressable. This gives maximum
-deduplication and requires only one encryption password for the entire cluster.
+Each backup target gets its own **isolated restic repository** at
+`/backup/<name>` (via per-app NFS subdirectory mounts). This eliminates lock
+contention between backups — a stale lock in one app's repo cannot block any
+other app's backups. All repos share the same encryption password.
 
 The NFS share content is then automatically backed up to Backblaze B2, providing
 offsite redundancy.
@@ -42,20 +42,25 @@ offsite redundancy.
 
 ### NFS layout
 
-All backups write to a single restic repository at the NFS mount root:
+Each backup target has its own restic repository in a subdirectory:
 
 ```
 /mnt/HDD/k8s/backups/
-├── config          ← restic repo metadata
-├── data/           ← deduplicated encrypted chunks
-├── index/          ← restic index files
-├── keys/           ← restic key file
-├── locks/          ← lock files during operations
-└── snapshots/      ← snapshot metadata (tagged by hostname)
+├── pihole/             ← independent restic repo
+│   ├── config
+│   ├── data/
+│   ├── index/
+│   ├── keys/
+│   ├── locks/          ← only affects this app
+│   └── snapshots/
+├── grafana/
+├── forgejo/
+└── ...
 ```
 
-Snapshots are identified by their hostname, e.g., `backup-pihole`,
-`backup-grafana`, etc.
+Each mover pod mounts its app-specific subdirectory at `/mnt/backup`, so the
+`RESTIC_REPOSITORY: /mnt/backup` path in the shared secret works for all apps
+without per-app secrets.
 
 ## Restic password
 
