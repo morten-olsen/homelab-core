@@ -35,6 +35,7 @@ spec:
         app: "pihole"
       annotations:
         traffic.sidecar.istio.io/excludeInboundPorts: "53"
+        proxy.istio.io/config: '{"proxyMetadata":{"ISTIO_META_DNS_CAPTURE":"false"}}'
     spec:
       containers:
         - name: "pihole"
