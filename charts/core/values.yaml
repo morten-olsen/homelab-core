@@ -162,7 +162,7 @@ operators:
     chart: mariadb-operator
 
   dns-operator:
-    enabled: true
+    enabled: false
     version: 0.0.3
     namespace: falco
     repoURL: https://morten-olsen.github.io/homelab-dns-operator
