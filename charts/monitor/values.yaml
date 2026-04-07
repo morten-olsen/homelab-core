@@ -123,10 +123,6 @@ monitoring:
               - matchers:
                   - alertname="InfoInhibitor"
                 receiver: "null"
-              # k3s embeds controller-manager and scheduler — these alerts always fire
-              - matchers:
-                  - alertname=~"KubeControllerManagerDown|KubeSchedulerDown|KubeProxyDown"
-                receiver: "null"
               - matchers:
                   - severity="critical"
                 receiver: ntfy
@@ -164,6 +160,7 @@ monitoring:
           kubeApiserverSlos: true
           kubelet: true
           # k3s embeds kube-proxy, controller-manager, and scheduler — no separate pods/metrics
+          kubeControllerManager: false
           kubeProxy: false
           kubePrometheusGeneral: true
           kubePrometheusNodeRecording: true

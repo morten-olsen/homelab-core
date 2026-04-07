@@ -37,4 +37,4 @@ spec:
   podMetricsEndpoints:
     - port: http-envoy-prom
       interval: 15s
-      path: /metrics
+      path: /stats/prometheus
