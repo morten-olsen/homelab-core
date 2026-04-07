@@ -63,7 +63,7 @@ operators:
 
   cloudnative-pg:
     enabled: true
-    version: 0.27.1
+    version: 0.28.0
     namespace: cloudnative-pg
     repoURL: https://cloudnative-pg.github.io/charts
     chart: cloudnative-pg
