@@ -1,0 +1,28 @@
+apiVersion: dns.homelab.mortenolsen.pro/v1alpha1
+kind: DNSRecord
+metadata:
+  name: grafana
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: A
+  domain: {{ .Values.global.domain }}
+  subdomain: grafana
+  dnsClassRef:
+    name: private-dns
+  values:
+    - {{ .Values.global.ip | quote }}
+
+---
+apiVersion: dns.homelab.mortenolsen.pro/v1alpha1
+kind: DNSRecord
+metadata:
+  name: falco
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: A
+  domain: {{ .Values.global.domain }}
+  subdomain: falco
+  dnsClassRef:
+    name: private-dns
+  values:
+    - {{ .Values.global.ip | quote }}

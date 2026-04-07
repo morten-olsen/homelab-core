@@ -1,6 +1,7 @@
 global:
   project: shared
   domain: olsen.cloud
+  ip: 192.168.20.180
   additionalDomains:
     - "*.coder.olsen.cloud"
   email:

@@ -1,0 +1,36 @@
+{{- $global := .Values.global -}}
+{{- $pihole := .Values.pihole -}}
+{{- $auth := .Values.authentik -}}
+
+{{- if $pihole.enabled }}
+apiVersion: dns.homelab.mortenolsen.pro/v1alpha1
+kind: DNSRecord
+metadata:
+  name: pihole
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: A
+  domain: {{ $global.domain }}
+  subdomain: {{ $pihole.subdomain }}
+  dnsClassRef:
+    name: private-dns
+  values:
+    - {{ $global.ip | quote }}
+{{- end }}
+
+{{- if $auth.enabled }}
+---
+apiVersion: dns.homelab.mortenolsen.pro/v1alpha1
+kind: DNSRecord
+metadata:
+  name: authentik
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: A
+  domain: {{ $global.domain }}
+  subdomain: {{ $auth.subdomain }}
+  dnsClassRef:
+    name: private-dns
+  values:
+    - {{ $global.ip | quote }}
+{{- end }}

@@ -1,5 +1,6 @@
 global:
   domain: olsen.cloud
+  ip: 192.168.20.180
   project: monitor
   syncPolicy:
     automated:
