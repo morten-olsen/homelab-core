@@ -15,21 +15,11 @@ spec:
             host: "prometheus-operator-grafana"
             port:
               number: 80
-  tls:
-    - match:
-        - port: 443
-          sniHosts:
-            - "grafana.{{ .Values.global.domain }}"
-      route:
-        - destination:
-            host: "prometheus-operator-grafana"
-            port:
-              number: 80
 ---
 apiVersion: networking.istio.io/v1
 kind: ServiceEntry
 metadata:
-  name: "grafana-mesh"
+  name: "grafana-mesh-http"
   namespace: "{{ .Release.Namespace }}"
 spec:
   hosts:
@@ -38,11 +28,27 @@ spec:
     - number: 80
       name: http
       protocol: HTTP
+  resolution: DNS
+  location: MESH_INTERNAL
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: "grafana-mesh-https"
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  hosts:
+    - "grafana.{{ .Values.global.domain }}"
+  ports:
     - number: 443
       name: https
-      protocol: TLS
-  resolution: NONE
+      protocol: HTTPS
+  resolution: DNS
   location: MESH_INTERNAL
+  endpoints:
+    - address: gateway.istio-ingress.svc.cluster.local
+      ports:
+        https: 443
 ---
 apiVersion: networking.istio.io/v1
 kind: VirtualService
@@ -61,21 +67,11 @@ spec:
             host: "falco-falcosidekick-ui.falco.svc.cluster.local"
             port:
               number: 2802
-  tls:
-    - match:
-        - port: 443
-          sniHosts:
-            - "falco.{{ .Values.global.domain }}"
-      route:
-        - destination:
-            host: "falco-falcosidekick-ui.falco.svc.cluster.local"
-            port:
-              number: 2802
 ---
 apiVersion: networking.istio.io/v1
 kind: ServiceEntry
 metadata:
-  name: "falco-mesh"
+  name: "falco-mesh-http"
   namespace: "{{ .Release.Namespace }}"
 spec:
   hosts:
@@ -84,8 +80,24 @@ spec:
     - number: 80
       name: http
       protocol: HTTP
+  resolution: DNS
+  location: MESH_INTERNAL
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: "falco-mesh-https"
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  hosts:
+    - "falco.{{ .Values.global.domain }}"
+  ports:
     - number: 443
       name: https
-      protocol: TLS
-  resolution: NONE
+      protocol: HTTPS
+  resolution: DNS
   location: MESH_INTERNAL
+  endpoints:
+    - address: gateway.istio-ingress.svc.cluster.local
+      ports:
+        https: 443

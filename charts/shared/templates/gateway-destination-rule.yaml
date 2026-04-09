@@ -1,0 +1,16 @@
+{{/*
+Disable mTLS for traffic from sidecars to the Istio ingress gateway.
+The gateway pod has no sidecar, so it cannot negotiate mTLS. Without this
+rule, HTTPS ServiceEntries routing through the gateway will timeout because
+the sidecar tries istio-peer-exchange which the gateway doesn't understand.
+*/}}
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: gateway-no-mtls
+  namespace: istio-ingress
+spec:
+  host: gateway.istio-ingress.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: DISABLE
