@@ -137,7 +137,7 @@ spec:
 apiVersion: networking.istio.io/v1
 kind: ServiceEntry
 metadata:
-  name: "pihole-mesh-http"
+  name: "pihole-mesh"
   namespace: "{{ .Release.Namespace }}"
 spec:
   hosts:
@@ -146,18 +146,6 @@ spec:
     - number: 80
       name: http
       protocol: HTTP
-  resolution: DNS
-  location: MESH_INTERNAL
----
-apiVersion: networking.istio.io/v1
-kind: ServiceEntry
-metadata:
-  name: "pihole-mesh-https"
-  namespace: "{{ .Release.Namespace }}"
-spec:
-  hosts:
-    - "{{ $pihole.subdomain }}.{{ $global.domain }}"
-  ports:
     - number: 443
       name: https
       protocol: HTTPS

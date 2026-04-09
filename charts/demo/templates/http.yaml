@@ -50,7 +50,7 @@ spec:
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
 metadata:
-  name: demo-http-mesh-http
+  name: demo-http-mesh
   namespace: {{ .Release.Namespace }}
 spec:
   hosts:
@@ -59,18 +59,6 @@ spec:
   - number: 80
     name: http
     protocol: HTTP
-  resolution: DNS
-  location: MESH_INTERNAL
----
-apiVersion: networking.istio.io/v1beta1
-kind: ServiceEntry
-metadata:
-  name: demo-http-mesh-https
-  namespace: {{ .Release.Namespace }}
-spec:
-  hosts:
-  - "http.{{ .Values.domain }}"
-  ports:
   - number: 443
     name: https
     protocol: HTTPS

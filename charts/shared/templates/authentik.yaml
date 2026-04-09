@@ -79,7 +79,7 @@ spec:
 apiVersion: networking.istio.io/v1
 kind: ServiceEntry
 metadata:
-  name: "authentik-mesh-http"
+  name: "authentik-mesh"
   namespace: "{{ .Release.Namespace }}"
 spec:
   hosts:
@@ -88,18 +88,6 @@ spec:
     - number: 80
       name: http
       protocol: HTTP
-  resolution: DNS
-  location: MESH_INTERNAL
----
-apiVersion: networking.istio.io/v1
-kind: ServiceEntry
-metadata:
-  name: "authentik-mesh-https"
-  namespace: "{{ .Release.Namespace }}"
-spec:
-  hosts:
-    - "{{ $auth.subdomain }}.{{ $global.domain }}"
-  ports:
     - number: 443
       name: https
       protocol: HTTPS
