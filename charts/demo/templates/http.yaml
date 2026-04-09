@@ -50,7 +50,7 @@ spec:
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
 metadata:
-  name: demo-http-mesh-dns-http
+  name: demo-http-mesh
   namespace: {{ .Release.Namespace }}
 spec:
   hosts:
@@ -59,29 +59,11 @@ spec:
   - number: 80
     name: http
     protocol: HTTP
-  resolution: DNS
-  location: MESH_INTERNAL
-  # This ServiceEntry tells Istio to intercept DNS queries for http.local.olsen.cloud (HTTP)
-  # HTTP traffic goes directly through the mesh to the service
----
-apiVersion: networking.istio.io/v1beta1
-kind: ServiceEntry
-metadata:
-  name: demo-http-mesh-dns-https
-  namespace: {{ .Release.Namespace }}
-spec:
-  hosts:
-  - "http.{{ .Values.domain }}"
-  ports:
   - number: 443
     name: https
-    protocol: HTTPS
-  resolution: DNS
+    protocol: TLS
+  resolution: NONE
   location: MESH_INTERNAL
-  endpoints:
-  - address: gateway.istio-ingress.svc.cluster.local
-    ports:
-      https: 443
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
