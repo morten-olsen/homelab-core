@@ -176,7 +176,6 @@ operators:
     chart: base
     values:
       defaultRevision: default
-      profile: ambient
     ignoreDifferences:
       - group: admissionregistration.k8s.io
         kind: ValidatingWebhookConfiguration

@@ -2,11 +2,11 @@
 
 This document covers the networking stack: Istio service mesh, gateway architecture, service routing, DNS, and TLS.
 
-## Istio Ambient Mesh
+## Istio Sidecar Mesh
 
-The cluster runs Istio 1.28.2 in **ambient mode** (`profile: ambient` on the `istio-base` chart). Unlike traditional Istio, ambient mode does not inject sidecar proxies into application pods. Instead, it uses a per-node **ztunnel** DaemonSet that transparently handles mTLS and L4 traffic between workloads. This removes the memory/CPU overhead of sidecars and simplifies pod lifecycle management.
+The cluster runs Istio 1.29.1 in **sidecar mode** (the default). Istio injects an Envoy sidecar proxy into every pod in labeled namespaces, handling mTLS, L4/L7 routing, DNS interception, and observability. Sidecar injection is enabled on the `prod`, `prod-containarr`, `shared`, `monitoring`, and `demo` namespaces via the `istio-injection: enabled` label.
 
-istiod is configured with DNS capture so the mesh can intercept DNS queries for internal hostnames:
+istiod is configured with DNS capture so the sidecar can intercept DNS queries for mesh-internal hostnames. This ensures that when a pod resolves a public domain (e.g. `ntfy.olsen.cloud`), the sidecar routes traffic directly to the in-cluster service via the `mesh` gateway on VirtualServices, avoiding internet hairpinning:
 
 ```yaml
 # charts/core/values.yaml -- istiod config

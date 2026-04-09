@@ -32,7 +32,7 @@ Charts deploy in sync-wave order: operators first, then shared infrastructure th
 
 ## Key Design Decisions
 
-- **Istio Ambient** for service mesh and ingress (no sidecars)
+- **Istio** for service mesh and ingress (sidecar injection)
 - **CloudNative-PG** for PostgreSQL
 - **cert-manager** with Cloudflare DNS01 for wildcard TLS certificates
 - **ArgoCD** for GitOps (required)
