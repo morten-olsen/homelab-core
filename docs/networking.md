@@ -104,12 +104,12 @@ spec:
 
 ### Public + private example: Authentik
 
-Authentik needs to be reachable from both the internet (for SSO) and the LAN. It uses two separate VirtualService resources -- one per gateway:
+Authentik needs to be reachable from both the internet (for SSO) and the LAN. It uses two separate VirtualService resources -- one per gateway. Both include the `mesh` gateway for internal pod-to-pod routing:
 
 ```yaml
 # authentik-public
 spec:
-  gateways: [ shared/public ]
+  gateways: [ shared/public, mesh ]
   hosts: [ auth.olsen.cloud ]
   http:
     - route:
@@ -117,7 +117,7 @@ spec:
 
 # authentik-private
 spec:
-  gateways: [ shared/private ]
+  gateways: [ shared/private, mesh ]
   hosts: [ auth.olsen.cloud ]
   http:
     - route:
@@ -125,6 +125,48 @@ spec:
 ```
 
 The split into two VirtualServices (rather than listing both gateways in one) keeps the public and private routing independently manageable.
+
+## Mesh-Internal Routing (ServiceEntries)
+
+When a pod calls another service by its public domain (e.g. `https://ntfy.olsen.cloud`), the sidecar's DNS proxy intercepts the query and returns a mesh-internal virtual IP (VIP) instead of the public IP. This prevents traffic from hairpinning through the internet.
+
+This requires a `ServiceEntry` per service that declares the hostname as `MESH_INTERNAL`:
+
+```yaml
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: ntfy-mesh
+spec:
+  hosts:
+    - ntfy.olsen.cloud
+  ports:
+    - number: 80
+      name: http
+      protocol: HTTP
+    - number: 443
+      name: https
+      protocol: HTTPS
+  resolution: DNS
+  location: MESH_INTERNAL
+  endpoints:
+    - address: gateway.istio-ingress.svc.cluster.local
+      ports:
+        https: 443
+```
+
+**How it works:**
+
+- **HTTP** (port 80): The sidecar intercepts the request and routes it directly to the backend service via the VirtualService's `mesh` gateway -- no gateway hop needed.
+- **HTTPS** (port 443): The sidecar passes the TLS connection through to the Istio gateway (`gateway.istio-ingress`), which terminates TLS using the wildcard cert and routes to the backend via the VirtualService.
+
+**Important design constraints:**
+
+- **Single ServiceEntry per hostname.** Never split HTTP and HTTPS into separate ServiceEntries for the same host -- each gets its own auto-allocated VIP, and DNS returns them randomly. If a client picks the HTTP VIP for an HTTPS request, the TLS handshake hangs.
+- **DestinationRule on the gateway.** The gateway pod has no sidecar, so sidecars must not attempt mTLS when forwarding HTTPS to it. A `DestinationRule` with `tls.mode: DISABLE` on `gateway.istio-ingress.svc.cluster.local` is required (defined in `charts/shared/templates/gateway-destination-rule.yaml`).
+- **All VirtualServices need the `mesh` gateway.** Without it, the sidecar has no route for mesh-internal HTTP traffic.
+
+The common library (`apps/common`) generates ServiceEntries automatically via `common.serviceEntry` when `virtualService.enabled` is true. For services outside the common library (e.g. Authentik, Pi-hole, Grafana), ServiceEntries are defined manually in their respective templates.
 
 ## IngressClass
 
