@@ -76,23 +76,12 @@ spec:
   - number: 443
     name: https
     protocol: HTTPS
-  resolution: STATIC
+  resolution: DNS
   location: MESH_INTERNAL
-  # Route HTTPS traffic to the Gateway service for TLS termination
-  # The Gateway terminates TLS and forwards HTTP to the VirtualService
-  # We use Helm's lookup function to get the Gateway service ClusterIP dynamically
   endpoints:
-  {{- $gatewaySvc := lookup "v1" "Service" "istio-ingress" "gateway" }}
-  {{- if $gatewaySvc }}
-  - address: {{ $gatewaySvc.spec.clusterIP }}
+  - address: gateway.istio-ingress.svc.cluster.local
     ports:
       https: 443
-  {{- else }}
-  # Gateway service not found - HTTPS will fail until Gateway is deployed
-  - address: "0.0.0.0"
-    ports:
-      https: 443
-  {{- end }}
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
