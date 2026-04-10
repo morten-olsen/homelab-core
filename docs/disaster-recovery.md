@@ -10,25 +10,66 @@ Before you need this guide, ensure these are saved outside the cluster:
 |------|---------------|---------------|
 | Restic password | Password manager | `kubectl get secret volsync-restic -n shared -o jsonpath='{.data.RESTIC_PASSWORD}' \| base64 -d` |
 | Cloudflare API token | Password manager | Manual -- same token used for DNS zone |
+| Registry credentials | Password manager | Username + password for zot.olsen.cloud (if using private registry) |
 | YubiKey | Physical possession | Used for SOPS decryption of `secrets/unifi.yaml` |
 | Backup age key | Offline storage (USB/printed) | Created during `scripts/setup-secrets.sh` |
 
 The Git repositories and NFS backups (`192.168.20.106:/mnt/HDD/k8s/backups`) contain everything else.
 
-## Step 1: Install K3s
+## Step 1: Install and configure K3s
 
-SSH into the host (192.168.20.180) and install K3s:
+SSH into the host (192.168.20.180).
+
+### Kubelet configuration
+
+Create the kubelet config to raise the max pod limit from the default 110:
+
+```bash
+mkdir -p /etc/rancher/k3s
+cat > /etc/rancher/k3s/kubelet.config <<'EOF'
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+maxPods: 250
+EOF
+```
+
+### Private registry mirror (optional)
+
+If using a private OCI registry (zot), configure the mirror:
+
+```bash
+cat > /etc/rancher/k3s/registries.yaml <<'EOF'
+mirrors:
+  zot.local:
+    endpoint:
+      - https://zot.olsen.cloud
+configs:
+  zot.local:
+    auth:
+      username: <registry-username>
+      password: <registry-password>
+  zot.olsen.cloud:
+    auth:
+      username: <registry-username>
+      password: <registry-password>
+EOF
+```
+
+### Install K3s
 
 ```bash
 curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.33.4+k3s1" sh -s - \
   --disable traefik \
   --disable servicelb \
-  --write-kubeconfig-mode 644
+  --write-kubeconfig-mode 644 \
+  --kubelet-arg="config=/etc/rancher/k3s/kubelet.config"
 ```
 
-Traefik and ServiceLB are disabled because Istio handles ingress. K3s includes the local-path storage provisioner and CoreDNS by default.
+- `--disable traefik` and `--disable servicelb` — Istio handles ingress
+- `--kubelet-arg="config=..."` — applies the max pods limit
+- K3s includes local-path storage provisioner and CoreDNS by default
 
-Copy the kubeconfig to your workstation:
+### Copy kubeconfig to workstation
 
 ```bash
 scp root@192.168.20.180:/etc/rancher/k3s/k3s.yaml ~/.kube/config
@@ -41,6 +82,8 @@ Verify:
 ```bash
 kubectl get nodes
 # Should show: compute   Ready   control-plane,master
+kubectl get node compute -o jsonpath='{.status.capacity.pods}'
+# Should show: 250
 ```
 
 ## Step 2: Install ArgoCD
