@@ -46,10 +46,22 @@ metadata:
 spec:
   gateways:
     - "{{ .Release.Namespace }}/public"
-    - mesh
   hosts:
     - "{{ $auth.subdomain }}.{{ $global.domain }}"
   http:
+    # Block admin paths on the public gateway — admin UI, admin API,
+    # and impersonation should only be reachable from LAN/VPN.
+    - match:
+        - uri:
+            prefix: /administration
+        - uri:
+            prefix: /api/v3/admin
+        - uri:
+            prefix: /-/impersonation
+      directResponse:
+        status: 403
+        body:
+          string: "Forbidden"
     - route:
         - destination:
             host: "authentik"
