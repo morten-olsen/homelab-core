@@ -1,6 +1,6 @@
 {{- $global := .Values.global -}}
-{{- $pihole := .Values.pihole -}}
-{{- $auth := .Values.authentik -}}
+{{- $pihole := .Values.resources.pihole -}}
+{{- $auth := .Values.resources.authentik -}}
 
 {{- if $pihole.enabled }}
 apiVersion: dns.homelab.mortenolsen.pro/v1alpha1
