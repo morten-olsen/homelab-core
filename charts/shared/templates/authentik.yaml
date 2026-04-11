@@ -53,6 +53,8 @@ spec:
     # and impersonation should only be reachable from LAN/VPN.
     - match:
         - uri:
+            prefix: /if/admin
+        - uri:
             prefix: /administration
         - uri:
             prefix: /api/v3/admin
