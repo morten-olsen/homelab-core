@@ -1,13 +1,37 @@
 {{/*
-Expand the name of the chart.
+===========================================================================
+  Context Builder
+===========================================================================
+
+All public entry points accept (list <rootContext> <appValues>).
+This helper builds a Helm-like context dict from those arguments
+and delegates to an internal template.
+
+Usage from entry points:
+  {{ include "common._render" (list "common._deployment" (index . 0) (index . 1)) }}
+
+Usage for common.all (builds context once, calls multiple templates):
+  $ctx := dict "Values" (merged app values) "Release" .Release "Chart" .Chart
 */}}
+{{- define "common._render" -}}
+{{- $name := index . 0 -}}
+{{- $root := index . 1 -}}
+{{- $app := index . 2 -}}
+{{- $globals := default dict $root.Values.globals -}}
+{{- $ctx := dict "Values" (mergeOverwrite (deepCopy $app) (dict "globals" $globals)) "Release" $root.Release "Chart" $root.Chart -}}
+{{- include $name $ctx -}}
+{{- end -}}
+
+{{/*
+===========================================================================
+  Name & Label Helpers
+===========================================================================
+*/}}
+
 {{- define "common.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
 {{- define "common.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
@@ -21,16 +45,10 @@ Create a default fully qualified app name.
 {{- end }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "common.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "common.labels" -}}
 helm.sh/chart: {{ include "common.chart" . }}
 {{ include "common.selectorLabels" . }}
@@ -40,17 +58,17 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "common.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "common.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-Standard deployment strategy
+===========================================================================
+  Value Helpers
+===========================================================================
 */}}
+
 {{- define "common.deploymentStrategy" -}}
 {{- if .Values.deployment.strategy }}
 {{- .Values.deployment.strategy }}
@@ -59,9 +77,6 @@ Recreate
 {{- end }}
 {{- end }}
 
-{{/*
-Standard container port (for backward compatibility)
-*/}}
 {{- define "common.containerPort" -}}
 {{- if .Values.container.ports }}
 {{- $primaryPort := first .Values.container.ports }}
@@ -73,9 +88,6 @@ Standard container port (for backward compatibility)
 {{- end }}
 {{- end }}
 
-{{/*
-Container ports list
-*/}}
 {{- define "common.containerPorts" -}}
 {{- if .Values.container.ports }}
 {{- range .Values.container.ports }}
@@ -94,9 +106,6 @@ Container ports list
 {{- end }}
 {{- end }}
 
-{{/*
-Standard service port (for backward compatibility)
-*/}}
 {{- define "common.servicePort" -}}
 {{- if .Values.service.ports }}
 {{- $primaryService := first .Values.service.ports }}
@@ -108,9 +117,6 @@ Standard service port (for backward compatibility)
 {{- end }}
 {{- end }}
 
-{{/*
-Service ports list
-*/}}
 {{- define "common.servicePorts" -}}
 {{- if .Values.service.ports }}
 {{- range .Values.service.ports }}
@@ -132,9 +138,6 @@ Service ports list
 {{- end }}
 {{- end }}
 
-{{/*
-Standard health probe
-*/}}
 {{- define "common.healthProbe" -}}
 {{- if .Values.container.healthProbe }}
 {{- $probePort := .Values.container.healthProbe.port | default (include "common.containerPort" .) }}
@@ -168,23 +171,14 @@ tcpSocket:
 {{- end }}
 {{- end }}
 
-{{/*
-Full domain name
-*/}}
 {{- define "common.domain" -}}
 {{ .Values.subdomain }}.{{ .Values.globals.domain }}
 {{- end }}
 
-{{/*
-Full URL
-*/}}
 {{- define "common.url" -}}
 https://{{ include "common.domain" . }}
 {{- end }}
 
-{{/*
-Standard volume mounts
-*/}}
 {{- define "common.volumeMounts" -}}
 {{- range .Values.volumes }}
 - name: {{ .name }}
@@ -195,9 +189,6 @@ Standard volume mounts
 {{- end }}
 {{- end }}
 
-{{/*
-Standard volumes
-*/}}
 {{- define "common.volumes" -}}
 {{- range .Values.volumes }}
 - name: {{ .name }}
@@ -226,9 +217,6 @@ Standard volumes
 {{- end }}
 {{- end }}
 
-{{/*
-Standard environment variables
-*/}}
 {{- define "common.env" -}}
 {{- if .Values.env }}
 {{- range $key, $value := .Values.env }}
@@ -259,25 +247,16 @@ Standard environment variables
 {{- end }}
 {{- end }}
 
-{{/*
-VirtualService gateway list for public gateway
-*/}}
 {{- define "common.virtualServiceGatewaysPublic" -}}
 - {{ .Values.globals.istio.gateways.public | quote }}
 - mesh
 {{- end }}
 
-{{/*
-VirtualService gateway list for private gateway
-*/}}
 {{- define "common.virtualServiceGatewaysPrivate" -}}
 - {{ .Values.globals.istio.gateways.private | quote }}
 - mesh
 {{- end }}
 
-{{/*
-DNS configuration for pod spec
-*/}}
 {{- define "common.dnsConfig" -}}
 {{- if .Values.deployment.dns }}
 {{- if .Values.deployment.dns.nameservers }}
@@ -306,9 +285,15 @@ dnsPolicy: {{ .Values.deployment.dnsPolicy }}
 {{- end }}
 
 {{/*
-Full Deployment resource
+===========================================================================
+  Internal Resource Templates
+
+  These receive a pre-built context with .Values, .Release, .Chart.
+  Called by public entry points — not intended for direct use.
+===========================================================================
 */}}
-{{- define "common.deployment" -}}
+
+{{- define "common._deployment" -}}
 {{- if .Values.deployment }}
 ---
 apiVersion: apps/v1
@@ -435,10 +420,7 @@ spec:
 {{- end }}
 {{- end }}
 
-{{/*
-Full ServiceAccount resource
-*/}}
-{{- define "common.serviceAccount" -}}
+{{- define "common._serviceAccount" -}}
 {{- if .Values.serviceAccount }}
 ---
 apiVersion: v1
@@ -455,10 +437,7 @@ metadata:
 {{- end }}
 {{- end }}
 
-{{/*
-Full Service resource(s) - supports multiple services
-*/}}
-{{- define "common.service" -}}
+{{- define "common._service" -}}
 {{- if .Values.service }}
 {{- if .Values.service.ports }}
 {{- $firstPort := index .Values.service.ports 0 }}
@@ -498,10 +477,7 @@ spec:
 {{- end }}
 {{- end }}
 
-{{/*
-Full PVC resources
-*/}}
-{{- define "common.pvc" -}}
+{{- define "common._pvc" -}}
 {{- if .Values.persistentVolumeClaims }}
 {{- range .Values.persistentVolumeClaims }}
 ---
@@ -529,12 +505,10 @@ spec:
 {{- end }}
 {{- end }}
 
-{{/*
-Full VirtualService resources
-*/}}
-{{- define "common.virtualService" -}}
+{{- define "common._virtualService" -}}
+{{- if .Values.virtualService }}
 {{- if and .Values.virtualService.enabled .Values.subdomain (hasKey .Values.globals "domain") (ne .Values.globals.domain "") }}
-{{- if and .Values.virtualService.gateways.public (hasKey .Values.globals "istio") (hasKey .Values.globals.istio "gateways") (hasKey .Values.globals.istio.gateways "public") (ne .Values.globals.istio.gateways.public "") }}
+{{- if and .Values.virtualService.gateways .Values.virtualService.gateways.public (hasKey .Values.globals "istio") (hasKey .Values.globals.istio "gateways") (hasKey .Values.globals.istio.gateways "public") (ne .Values.globals.istio.gateways.public "") }}
 ---
 apiVersion: networking.istio.io/v1
 kind: VirtualService
@@ -564,7 +538,7 @@ spec:
               {{- end }}
 
 {{- end }}
-{{- if and .Values.virtualService.gateways.private (hasKey .Values.globals "istio") (hasKey .Values.globals.istio "gateways") (hasKey .Values.globals.istio.gateways "private") (ne .Values.globals.istio.gateways.private "") }}
+{{- if and .Values.virtualService.gateways .Values.virtualService.gateways.private (hasKey .Values.globals "istio") (hasKey .Values.globals.istio "gateways") (hasKey .Values.globals.istio.gateways "private") (ne .Values.globals.istio.gateways.private "") }}
 ---
 apiVersion: networking.istio.io/v1
 kind: VirtualService
@@ -595,17 +569,10 @@ spec:
 {{- end }}
 {{- end }}
 {{- end }}
+{{- end }}
 
-{{/*
-ServiceEntry for mesh-internal DNS resolution of public domains.
-When pods resolve <subdomain>.olsen.cloud, the sidecar DNS proxy returns
-a mesh-internal VIP so traffic stays in-cluster instead of hairpinning
-through the public internet.
-- HTTP: routes directly to the backend via the mesh VirtualService
-- HTTPS: routes to the Istio gateway for TLS termination (requires
-  DestinationRule to disable mTLS on the gateway since it has no sidecar)
-*/}}
-{{- define "common.serviceEntry" -}}
+{{- define "common._serviceEntry" -}}
+{{- if .Values.virtualService }}
 {{- if and .Values.virtualService.enabled .Values.subdomain (hasKey .Values.globals "domain") (ne .Values.globals.domain "") }}
 ---
 apiVersion: networking.istio.io/v1
@@ -633,11 +600,9 @@ spec:
         https: 443
 {{- end }}
 {{- end }}
+{{- end }}
 
-{{/*
-Full DNS resource
-*/}}
-{{- define "common.dns" -}}
+{{- define "common._dns" -}}
 {{- if and .Values.dns .Values.dns.enabled (hasKey .Values.globals "networking") (hasKey .Values.globals.networking "private") (hasKey .Values.globals.networking.private "ip") (ne .Values.globals.networking.private.ip "") }}
 ---
 apiVersion: dns.homelab.mortenolsen.pro/v1alpha1
@@ -660,10 +625,7 @@ spec:
 {{- end }}
 {{- end }}
 
-{{/*
-Full OIDC/AuthentikClient resource
-*/}}
-{{- define "common.oidc" -}}
+{{- define "common._oidc" -}}
 {{- if and .Values.oidc .Values.oidc.enabled (hasKey .Values.globals "authentik") (hasKey .Values.globals.authentik "ref") (hasKey .Values.globals.authentik.ref "name") (hasKey .Values.globals.authentik.ref "namespace") (ne .Values.globals.authentik.ref.name "") (ne .Values.globals.authentik.ref.namespace "") }}
 ---
 apiVersion: authentik.homelab.mortenolsen.pro/v1alpha1
@@ -686,10 +648,7 @@ spec:
 {{- end }}
 {{- end }}
 
-{{/*
-Full PostgreSQL Database resource
-*/}}
-{{- define "common.database" -}}
+{{- define "common._database" -}}
 {{- if and .Values.database .Values.database.enabled (hasKey .Values.globals "database") (hasKey .Values.globals.database "ref") (hasKey .Values.globals.database.ref "name") (hasKey .Values.globals.database.ref "namespace") (ne .Values.globals.database.ref.name "") (ne .Values.globals.database.ref.namespace "") }}
 ---
 apiVersion: postgres.homelab.mortenolsen.pro/v1
@@ -706,10 +665,7 @@ spec:
 {{- end }}
 {{- end }}
 
-{{/*
-Password generators for External Secrets (create these first)
-*/}}
-{{- define "common.externalSecrets.passwordGenerators" -}}
+{{- define "common._externalSecrets" -}}
 {{- if .Values.externalSecrets }}
 {{- range .Values.externalSecrets }}
 {{- $secretName := .name | default (printf "%s-%s" $.Release.Name "secrets") }}
@@ -738,14 +694,6 @@ spec:
   {{- end }}
 {{- end }}
 {{- end }}
-{{- end }}
-{{- end }}
-
-{{/*
-External Secrets (create these after password generators)
-*/}}
-{{- define "common.externalSecrets.externalSecrets" -}}
-{{- if .Values.externalSecrets }}
 {{- range .Values.externalSecrets }}
 {{- $secretName := .name | default (printf "%s-%s" $.Release.Name "secrets") }}
 {{- $secretName = $secretName | replace "{release}" $.Release.Name | replace "{fullname}" (include "common.fullname" $) }}
@@ -759,7 +707,6 @@ metadata:
     {{- include "common.labels" $ | nindent 4 }}
 spec:
   refreshInterval: "0"
-  # rotationPolicy is intentionally not set to ensure no automatic rotation
   target:
     name: {{ $secretName }}
     creationPolicy: Owner
@@ -775,21 +722,7 @@ spec:
 {{- end }}
 {{- end }}
 
-{{/*
-Full External Secrets resources (ExternalSecret + Password generators)
-Combined helper that outputs generators first, then ExternalSecrets
-*/}}
-{{- define "common.externalSecrets" -}}
-{{- include "common.externalSecrets.passwordGenerators" . }}
-{{- include "common.externalSecrets.externalSecrets" . }}
-{{- end }}
-
-{{/*
-Blackbox Probe for HTTP service monitoring.
-Automatically generated when .Values.service is defined, unless probe.enabled=false.
-Supports optional probe.path to override the probed URL path (default: /).
-*/}}
-{{- define "common.probe" -}}
+{{- define "common._probe" -}}
 {{- $probeEnabled := true }}
 {{- if and .Values.probe (hasKey .Values.probe "enabled") }}
 {{- $probeEnabled = .Values.probe.enabled }}
@@ -820,12 +753,7 @@ spec:
 {{- end }}
 {{- end }}
 
-{{/*
-Volsync ReplicationSource resources for PVCs with backup enabled.
-Creates one ReplicationSource per PVC that has backup: true.
-Mounts the NFS share directly into the restic mover pod via moverVolumes.
-*/}}
-{{- define "common.backup" -}}
+{{- define "common._backup" -}}
 {{- if and .Values.globals .Values.globals.backup .Values.globals.backup.enabled .Values.persistentVolumeClaims }}
 {{- $globals := .Values.globals }}
 {{- $backup := .Values.globals.backup }}
@@ -868,20 +796,77 @@ spec:
 {{- end }}
 
 {{/*
-Full All-in-One resource
-Includes all standard resources based on values.yaml configuration
+===========================================================================
+  Public Entry Points
+
+  All accept (list <rootContext> <appValues>).
+  Build a scoped context and delegate to internal templates.
+===========================================================================
 */}}
+
 {{- define "common.all" -}}
-{{- include "common.deployment" . }}
-{{- include "common.serviceAccount" . }}
-{{- include "common.service" . }}
-{{- include "common.pvc" . }}
-{{- include "common.virtualService" . }}
-{{- include "common.serviceEntry" . }}
-{{- include "common.dns" . }}
-{{- include "common.oidc" . }}
-{{- include "common.database" . }}
-{{- include "common.externalSecrets" . }}
-{{- include "common.probe" . }}
-{{- include "common.backup" . }}
+{{- $root := index . 0 -}}
+{{- $app := index . 1 -}}
+{{- $globals := default dict $root.Values.globals -}}
+{{- $ctx := dict "Values" (mergeOverwrite (deepCopy $app) (dict "globals" $globals)) "Release" $root.Release "Chart" $root.Chart -}}
+{{- include "common._deployment" $ctx }}
+{{- include "common._serviceAccount" $ctx }}
+{{- include "common._service" $ctx }}
+{{- include "common._pvc" $ctx }}
+{{- include "common._virtualService" $ctx }}
+{{- include "common._serviceEntry" $ctx }}
+{{- include "common._dns" $ctx }}
+{{- include "common._oidc" $ctx }}
+{{- include "common._database" $ctx }}
+{{- include "common._externalSecrets" $ctx }}
+{{- include "common._probe" $ctx }}
+{{- include "common._backup" $ctx }}
+{{- end }}
+
+{{- define "common.deployment" -}}
+{{- include "common._render" (list "common._deployment" (index . 0) (index . 1)) -}}
+{{- end }}
+
+{{- define "common.serviceAccount" -}}
+{{- include "common._render" (list "common._serviceAccount" (index . 0) (index . 1)) -}}
+{{- end }}
+
+{{- define "common.service" -}}
+{{- include "common._render" (list "common._service" (index . 0) (index . 1)) -}}
+{{- end }}
+
+{{- define "common.pvc" -}}
+{{- include "common._render" (list "common._pvc" (index . 0) (index . 1)) -}}
+{{- end }}
+
+{{- define "common.virtualService" -}}
+{{- include "common._render" (list "common._virtualService" (index . 0) (index . 1)) -}}
+{{- end }}
+
+{{- define "common.serviceEntry" -}}
+{{- include "common._render" (list "common._serviceEntry" (index . 0) (index . 1)) -}}
+{{- end }}
+
+{{- define "common.dns" -}}
+{{- include "common._render" (list "common._dns" (index . 0) (index . 1)) -}}
+{{- end }}
+
+{{- define "common.oidc" -}}
+{{- include "common._render" (list "common._oidc" (index . 0) (index . 1)) -}}
+{{- end }}
+
+{{- define "common.database" -}}
+{{- include "common._render" (list "common._database" (index . 0) (index . 1)) -}}
+{{- end }}
+
+{{- define "common.externalSecrets" -}}
+{{- include "common._render" (list "common._externalSecrets" (index . 0) (index . 1)) -}}
+{{- end }}
+
+{{- define "common.probe" -}}
+{{- include "common._render" (list "common._probe" (index . 0) (index . 1)) -}}
+{{- end }}
+
+{{- define "common.backup" -}}
+{{- include "common._render" (list "common._backup" (index . 0) (index . 1)) -}}
 {{- end }}
