@@ -2,7 +2,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: "{{ .Values.shared.project }}"
+  name: shared
   namespace: argocd
 spec:
   description: "Project for homelab apps"
@@ -16,7 +16,6 @@ spec:
       kind: "*"
 
 ---
-
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -25,28 +24,20 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  project: "{{ .Values.shared.project }}"
+  project: shared
   source:
-    repoURL: "{{ .Values.repoUrl }}"
-    targetRevision: "{{ .Values.revision }}"
+    repoURL: {{ .Values.source.repoUrl | quote }}
+    targetRevision: {{ .Values.source.targetRevision | quote }}
     path: charts/shared
     helm:
       values: |
-        project: "{{ .Values.shared.project }}"
-        {{- if .Values.shared.values }}
-        {{- toYaml .Values.shared.values | nindent 8 }}
-        {{- end }}
+        {{- $base := include "homelab.platformValues" . -}}
+        {{- include "homelab.mergeOverrides" (dict "base" $base "overrides" .Values.overrides.platform) | nindent 8 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: shared
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - ServerSideApply=true
-      - ApplyOutOfSyncOnly=true
-      - CreateNamespace=true
+    {{- include "homelab.syncPolicy" . | nindent 4 }}
     managedNamespaceMetadata:
       labels:
         istio.io/rev: default

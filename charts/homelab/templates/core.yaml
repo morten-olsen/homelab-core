@@ -2,7 +2,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: "{{ .Values.core.project }}"
+  name: core
   namespace: argocd
 spec:
   description: "Project for homelab apps"
@@ -24,26 +24,17 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: "{{ .Values.core.project }}"
+  project: core
   source:
-    repoURL: "{{ .Values.repoUrl }}"
-    targetRevision: "{{ .Values.revision }}"
+    repoURL: {{ .Values.source.repoUrl | quote }}
+    targetRevision: {{ .Values.source.targetRevision | quote }}
     path: charts/core
     helm:
       values: |
-        project: "{{ .Values.core.project }}"
-        {{- if .Values.core.values }}
-        {{- toYaml .Values.core.values | nindent 8 }}
-        {{- end }}
+        {{- $base := include "homelab.operatorValues" . -}}
+        {{- include "homelab.mergeOverrides" (dict "base" $base "overrides" .Values.overrides.operators) | nindent 8 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: core
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - ServerSideApply=true
-      - ApplyOutOfSyncOnly=true
-      - CreateNamespace=true
-
+    {{- include "homelab.syncPolicy" . | nindent 4 }}

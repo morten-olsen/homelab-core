@@ -1,8 +1,9 @@
+{{- if .Values.features.monitoring }}
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: "{{ .Values.monitor.project }}"
+  name: monitor
   namespace: argocd
 spec:
   description: "Project for monitoring stack"
@@ -16,7 +17,6 @@ spec:
       kind: "*"
 
 ---
-
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -25,31 +25,24 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
-  project: "{{ .Values.monitor.project }}"
+  project: monitor
   source:
-    repoURL: "{{ .Values.repoUrl }}"
-    targetRevision: "{{ .Values.revision }}"
+    repoURL: {{ .Values.source.repoUrl | quote }}
+    targetRevision: {{ .Values.source.targetRevision | quote }}
     path: charts/monitor
     helm:
       values: |
-        project: "{{ .Values.monitor.project }}"
-        {{- if .Values.monitor.values }}
-        {{- toYaml .Values.monitor.values | nindent 8 }}
-        {{- end }}
+        {{- $base := include "homelab.monitoringValues" . -}}
+        {{- include "homelab.mergeOverrides" (dict "base" $base "overrides" .Values.overrides.monitoring) | nindent 8 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - ServerSideApply=true
-      - ApplyOutOfSyncOnly=true
-      - CreateNamespace=true
+    {{- include "homelab.syncPolicy" . | nindent 4 }}
     managedNamespaceMetadata:
       labels:
         istio.io/rev: default
         istio-injection: enabled
       annotations:
         volsync.backube/privileged-movers: "true"
+{{- end }}

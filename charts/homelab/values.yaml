@@ -1,48 +1,105 @@
-repoUrl: https://github.com/morten-olsen/homelab-core.git
-targetRevision: main
-revision: main
+# -- Source configuration ---------------------------------------------------
+# Where ArgoCD finds the sub-charts (git repo or Helm chart repo)
+source:
+  repoUrl: https://github.com/morten-olsen/homelab-core.git
+  targetRevision: main
 
-core:
-  project: core
-  # Value overrides for the core chart
-  # These values will be merged with the core chart's default values.yaml
-  # values:
-  #   global:
-  #     syncPolicy:
-  #       automated:
-  #         prune: false
-  #   operators:
-  #     cert-manager:
-  #       enabled: true
-  #       values:
-  #         extraArgs:
-  #           - --dns01-recursive-nameservers-only
+# -- Platform identity -----------------------------------------------------
+# Core settings passed to all sub-charts
+platform:
+  domain: olsen.cloud
+  ip: 192.168.20.180
+  additionalDomains:
+    - "*.coder.olsen.cloud"
+  email: ""
+  timezone: Europe/Amsterdam
+  acme: prod
 
-shared:
-  project: shared
-  # Value overrides for the shared chart
-  # These values will be merged with the shared chart's default values.yaml
-  # values:
-  #   global:
-  #     domain: example.com
-  #     email: admin@example.com
-  #   resources:
-  #     gateway:
-  #       enabled: true
+# -- Feature flags ---------------------------------------------------------
+# Each feature controls one or more operators and platform resources.
+# Disabling a feature removes its operators AND the resources that depend on them.
+features:
+  # GitOps controller — ArgoCD (required, the deployment mechanism)
+  gitops: true
 
-monitor:
-  project: monitor
-  # Value overrides for the monitor chart
-  # These values will be merged with the monitor chart's default values.yaml
-  # values:
-  #   global:
-  #     syncPolicy:
-  #       automated:
-  #         prune: true
-  #   monitoring:
-  #     prometheus-operator:
-  #       enabled: true
-  #       values:
-  #         prometheus:
-  #           prometheusSpec:
-  #             retention: 60d
+  # Service mesh and ingress — Istio (base, istiod, gateways, ingress class)
+  serviceMesh: true
+
+  # TLS certificates — cert-manager, cluster issuer, wildcard certificate
+  certificates: true
+
+  # Identity and authentication — Authentik operator and server
+  auth: true
+
+  # PostgreSQL — CloudNative-PG operator and managed cluster
+  postgres: true
+
+  # MariaDB — MariaDB operator and CRDs
+  mariadb: true
+
+  # Observability — Prometheus, Grafana, Alertmanager, blackbox exporter
+  monitoring: true
+
+  # Security scanning and policy — Falco, Trivy, Kyverno
+  security: true
+
+  # Secret management — Sealed Secrets, External Secrets Operator
+  secrets: true
+
+  # Volume backup and replication — VolSync
+  backup: true
+
+  # DNS management and ad-blocking — DNS operator, Pi-hole
+  dns: true
+
+  # Cross-namespace secret/configmap reflection — Reflector
+  reflection: true
+
+  # Automatic pod restart on config changes — Reloader
+  reloader: true
+
+  # Storage class configuration
+  storage: true
+
+  # Demo applications
+  demo: true
+
+# -- Backup configuration (when features.backup is true) -------------------
+backup:
+  nfs:
+    server: 192.168.20.106
+    path: /mnt/HDD/k8s/backups
+
+# -- Monitoring configuration (when features.monitoring is true) -----------
+monitoring:
+  ntfy:
+    url: http://ntfy.prod.svc.cluster.local
+    topic: homelab-alerts
+
+# -- Sub-chart value overrides ---------------------------------------------
+# Escape hatch for power users. Values here are deep-merged into the
+# respective sub-chart's helm values, AFTER feature-derived values.
+# Use this to override operator versions, resource limits, or any
+# sub-chart-specific configuration.
+#
+# Example:
+#   overrides:
+#     operators:
+#       operators:
+#         istiod:
+#           version: "1.26.0"
+#     platform:
+#       resources:
+#         postgresCluster:
+#           instances: 3
+#     monitoring:
+#       monitoring:
+#         prometheus-operator:
+#           values:
+#             prometheus:
+#               prometheusSpec:
+#                 retention: 60d
+overrides:
+  operators: {}
+  platform: {}
+  monitoring: {}

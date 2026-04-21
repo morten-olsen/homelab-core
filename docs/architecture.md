@@ -1,24 +1,22 @@
-# Homelab Core Architecture
+# Homelab Platform Architecture
 
 ## Chart Hierarchy
 
-The repo contains four Helm charts under `charts/`:
+The repo contains five Helm charts under `charts/`:
 
 ```
 charts/
-  homelab/      Orchestrator -- the only chart deployed directly to ArgoCD
-  core/         Operators    -- CRD controllers and cluster-wide tooling
-  shared/       Shared infra -- networking, TLS, databases, DNS, auth
-  monitor/      Observability -- Prometheus stack, Grafana, alerting, probes
+  homelab/      Umbrella chart -- feature flags, platform config, creates ArgoCD Applications
+  core/         Operators      -- CRD controllers and cluster-wide tooling
+  shared/       Platform       -- networking, TLS, databases, DNS, auth, backups
+  monitor/      Observability  -- Prometheus stack, Grafana, alerting, probes
+  demo/         Demo apps      -- sample applications for testing
 ```
 
-The `homelab` chart is the single root Application registered in ArgoCD. It does
-not deploy any workloads itself. Instead, its templates (`core.yaml`,
-`shared.yaml`, `monitor.yaml`) each create:
-
-1. An ArgoCD **AppProject** (one per child chart).
-2. An ArgoCD **Application** that points back to this Git repo at the
-   corresponding `charts/<name>` path.
+The `homelab` chart is the entry point. It does not deploy any workloads itself.
+Its templates translate **feature flags** into ArgoCD Applications for each sub-chart,
+controlling what gets installed and passing platform configuration (domain, IP,
+backup paths, etc.) through to each sub-chart.
 
 ```
 ArgoCD
@@ -35,12 +33,62 @@ ArgoCD
         |     +-- gateway, cert-issuer, postgres-cluster, ...
         |     (resources rendered directly as Helm templates)
         |
-        +-- monitor (Application, wave 2)
+        +-- monitor (Application, wave 2)  [conditional on features.monitoring]
               +-- prometheus-operator (Application)
               +-- blackbox-exporter   (Application)
               +-- PrometheusRule, Probe, ConfigMap dashboards, ...
               (mix of ArgoCD Applications and direct templates)
 ```
+
+---
+
+## Umbrella Chart (homelab)
+
+The umbrella chart's `values.yaml` is the user-facing configuration interface.
+It has three sections:
+
+### Platform Identity
+
+```yaml
+platform:
+  domain: example.com
+  ip: 10.0.0.1
+  timezone: UTC
+  acme: prod
+```
+
+These values are passed to all sub-charts that need them (shared, monitor).
+
+### Feature Flags
+
+```yaml
+features:
+  serviceMesh: true
+  certificates: true
+  auth: true
+  postgres: true
+  monitoring: true
+  # ... 16 flags total
+```
+
+Each flag maps to one or more operators (in the core chart) and platform resources
+(in the shared chart). The mapping is defined in `templates/_helpers.tpl`:
+
+- `homelab.operatorValues` -- maps features to `operators.X.enabled` flags
+- `homelab.platformValues` -- maps features to `resources.X.enabled` flags + platform config
+- `homelab.monitoringValues` -- passes domain, IP, ntfy config, backup paths
+
+### Overrides (Escape Hatch)
+
+```yaml
+overrides:
+  operators: {}   # deep-merged into core chart values
+  platform: {}    # deep-merged into shared chart values
+  monitoring: {}  # deep-merged into monitor chart values
+```
+
+Values in `overrides` are merged on top of the feature-derived values using
+`mergeOverwrite`, giving power users full control without modifying sub-charts.
 
 ---
 
@@ -120,6 +168,9 @@ operators:
 
 No new template file is needed. The loop picks it up automatically.
 
+When using the umbrella chart, also map the operator to a feature flag in
+`charts/homelab/templates/_helpers.tpl` so it can be toggled.
+
 ### Supported fields per operator
 
 | Field              | Required | Description |
@@ -154,15 +205,16 @@ as part of the single `shared` Application.
 
 ### Why the difference
 
-Shared infrastructure resources are bespoke to this homelab. They are not
-off-the-shelf charts with their own release cycles; they are cluster-specific
-manifests (a wildcard certificate, a specific Postgres cluster configuration, an
-Istio Gateway with particular port mappings). Wrapping each one in a separate
-ArgoCD Application would add overhead without benefit. Rendering them in-line
-keeps the configuration co-located and version-controlled in one place.
+Shared infrastructure resources are the platform's bespoke configuration layer.
+They are not off-the-shelf charts with their own release cycles; they are
+platform-specific manifests (a wildcard certificate, a specific Postgres cluster
+configuration, an Istio Gateway with particular port mappings). Wrapping each one
+in a separate ArgoCD Application would add overhead without benefit. Rendering
+them in-line keeps the configuration co-located and version-controlled.
 
 The `resources` map in `charts/shared/values.yaml` controls which pieces are
-enabled, with each resource guarded by an `enabled` flag.
+enabled, with each resource guarded by an `enabled` flag. These flags are set by
+the umbrella chart's feature translation layer.
 
 ---
 
@@ -176,32 +228,25 @@ Large third-party stacks that have their own Helm charts are deployed as ArgoCD
 Applications, just like operators in the core chart:
 
 - **prometheus-operator** -- deployed via a `homelab-monitor.monitoringApp`
-  partial (structurally identical to the core operator partial). Entries live
-  under `monitoring` in `values.yaml` and are iterated in
+  partial. Entries live under `monitoring` in `values.yaml` and are iterated in
   `prometheus-operator.yaml`.
 - **blackbox-exporter** -- deployed via a dedicated template
   (`blackbox-exporter-app.yaml`) with its own values block.
 
 ### Direct templates (cluster-specific resources)
 
-Resources that are specific to this cluster and have no upstream chart are
+Resources that are specific to the platform and have no upstream chart are
 rendered directly:
 
 | Template | What it creates |
 |----------|-----------------|
-| `prometheus-rules.yaml` | `PrometheusRule` with custom alert definitions (disk, pod, certificate expiry) |
-| `blackbox-probes.yaml` | `Probe` CRs targeting internal services for uptime monitoring |
-| `grafana-dashboard-http.yaml` | `ConfigMap` with a Grafana dashboard JSON for HTTP probes |
-| `grafana-dashboard-trivy.yaml` | `ConfigMap` with a Grafana dashboard JSON for Trivy scan results |
+| `prometheus-rules.yaml` | `PrometheusRule` with custom alert definitions |
+| `blackbox-probes.yaml` | `Probe` CRs targeting internal services |
+| `grafana-dashboard-*.yaml` | `ConfigMap` dashboards for Grafana |
 | `istio-monitors.yaml` | `ServiceMonitor`/`PodMonitor` for Istio mesh telemetry |
 | `ntfy-alertmanager.yaml` | Deployment for the ntfy-alertmanager webhook bridge |
 | `virtual-service.yaml` | Istio `VirtualService` for Grafana ingress |
-| `grafana-admin-secret.yaml` | `SealedSecret` for the Grafana admin credentials |
-
-This hybrid approach lets the chart leverage battle-tested upstream charts
-(kube-prometheus-stack, blackbox-exporter) while keeping custom alerting rules,
-dashboards, and probes as version-controlled templates that are easy to review
-and modify.
+| `grafana-admin-secret.yaml` | `SealedSecret` for Grafana admin credentials |
 
 ---
 
@@ -210,73 +255,36 @@ and modify.
 Values flow through three layers:
 
 ```
-homelab/values.yaml          (1) Top-level overrides
+homelab/values.yaml          (1) Feature flags + platform config
     |
+    | translated by _helpers.tpl
     v
 ArgoCD Application spec      (2) Passed via spec.source.helm.values
     |
+    | merged by Helm
     v
 <child>/values.yaml          (3) Chart defaults
 ```
 
 ### How it works
 
-Each child Application template in the homelab chart injects values into the
-ArgoCD Application's `spec.source.helm.values` field. For example, from
-`charts/homelab/templates/core.yaml`:
+The umbrella chart's helper templates (`homelab.operatorValues`,
+`homelab.platformValues`, `homelab.monitoringValues`) translate feature flags
+and platform config into the value structure each sub-chart expects. These
+values are embedded in each ArgoCD Application's `spec.source.helm.values` field.
 
-```yaml
-source:
-  repoURL: "{{ .Values.repoUrl }}"
-  targetRevision: "{{ .Values.revision }}"
-  path: charts/core
-  helm:
-    values: |
-      project: "{{ .Values.core.project }}"
-      {{- if .Values.core.values }}
-      {{- toYaml .Values.core.values | nindent 8 }}
-      {{- end }}
-```
+User overrides from the `overrides` section are deep-merged on top via
+`mergeOverwrite`, then the entire block is passed to ArgoCD.
 
-This means you can override any value in the core, shared, or monitor chart by
-setting it under the corresponding key in `charts/homelab/values.yaml`:
+When ArgoCD renders a sub-chart, it merges these passed values with the
+sub-chart's own `values.yaml` defaults. This means sub-chart defaults serve as
+fallbacks — anything explicitly passed from the umbrella takes precedence.
 
-```yaml
-# charts/homelab/values.yaml
-core:
-  project: core
-  values:                          # <-- everything here merges into core's values
-    operators:
-      cert-manager:
-        enabled: true
-        values:
-          extraArgs:
-            - --dns01-recursive-nameservers-only
-
-shared:
-  project: shared
-  values:
-    global:
-      domain: example.com
-
-monitor:
-  project: monitor
-  values:
-    monitoring:
-      prometheus-operator:
-        values:
-          prometheus:
-            prometheusSpec:
-              retention: 60d
-```
-
-The same pattern repeats one level deeper: operator entries in the core chart
-pass their `values` sub-key into the ArgoCD Application they generate, which
-means the full chain can be up to four layers deep:
+For operators, the chain extends one more level:
 
 ```
 homelab values -> core values -> operator entry .values -> upstream chart defaults
 ```
 
-This keeps the homelab chart as the single source of truth for environment-specific
-configuration while letting each child chart define sensible defaults.
+This keeps the homelab chart as the single source of truth for configuration
+while letting each layer define sensible defaults.

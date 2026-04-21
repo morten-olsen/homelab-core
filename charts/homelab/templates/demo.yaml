@@ -1,9 +1,4 @@
-# This file is deprecated - use the Helm chart instead
-# See charts/app-of-apps/ for the Helm chart
-# To deploy: helm install app-of-apps ./charts/app-of-apps -f values.yaml -n argocd
-#
-# For backward compatibility, you can still use this file directly,
-# but the Helm chart is recommended for better configuration management.
+{{- if .Values.features.demo }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -14,22 +9,16 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: "{{ .Values.repoUrl }}"
-    targetRevision: "{{ .Values.revision }}"
+    repoURL: {{ .Values.source.repoUrl | quote }}
+    targetRevision: {{ .Values.source.targetRevision | quote }}
     path: charts/demo
   destination:
     server: https://kubernetes.default.svc
     namespace: demo
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - ServerSideApply=true
-      - ApplyOutOfSyncOnly=true
-      - CreateNamespace=true
+    {{- include "homelab.syncPolicy" . | nindent 4 }}
     managedNamespaceMetadata:
       labels:
         istio.io/rev: default
         istio-injection: enabled
-
+{{- end }}

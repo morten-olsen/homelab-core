@@ -1,4 +1,15 @@
 apiVersion: v2
-name: homelab-core
+name: homelab
+description: Turnkey Kubernetes platform — GitOps, service mesh, monitoring, and more
 version: 0.1.0
-appVersion: "1.0"
+keywords:
+  - homelab
+  - kubernetes
+  - platform
+  - gitops
+  - argocd
+home: https://github.com/morten-olsen/homelab-core
+sources:
+  - https://github.com/morten-olsen/homelab-core
+maintainers:
+  - name: Morten Olsen
