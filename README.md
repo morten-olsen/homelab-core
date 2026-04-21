@@ -4,7 +4,27 @@ A turnkey Kubernetes platform built with Helm and ArgoCD. Provides a complete, s
 
 **What you get:** GitOps deployment, service mesh with ingress, TLS certificates, OIDC authentication, managed databases, monitoring and alerting, security scanning, encrypted backups, and DNS management — all controlled through feature flags in a single values file.
 
-**What you deploy on top:** Applications using the [homelab-common](https://github.com/morten-olsen/homelab-apps) library chart, which abstracts Kubernetes resources into a high-level interface, or raw Kubernetes manifests when you need full control.
+**What you deploy on top:** Applications using the [`homelab-common`](#deploying-applications) library chart, which abstracts Kubernetes resources into a high-level interface, or raw Kubernetes manifests when you need full control.
+
+## Helm Repository
+
+All charts are published to a Helm repository:
+
+```bash
+helm repo add homelab https://mortenolsen.pro/homelab-core/
+helm repo update
+helm search repo homelab/
+```
+
+Published charts:
+
+| Chart | Description |
+|-------|-------------|
+| `homelab/homelab` | Umbrella chart — the entry point for deploying the platform |
+| `homelab/homelab-core` | Operators sub-chart (wave 0) |
+| `homelab/homelab-shared` | Platform resources sub-chart (wave 1) |
+| `homelab/homelab-monitor` | Monitoring stack sub-chart (wave 2) |
+| `homelab/homelab-common` | Library chart for deploying applications on the platform |
 
 ## Architecture
 
@@ -41,7 +61,14 @@ Charts deploy in sync-wave order: operators first (installing CRDs), then platfo
 - [Helm](https://helm.sh/) 3.x
 - A domain with DNS management (Cloudflare for default TLS setup)
 
-### 1. Configure
+### 1. Add the Helm repo
+
+```bash
+helm repo add homelab https://mortenolsen.pro/homelab-core/
+helm repo update
+```
+
+### 2. Configure
 
 Create a values file for your cluster:
 
@@ -86,7 +113,13 @@ monitoring:
     topic: alerts
 ```
 
-### 2. Deploy
+### 3. Deploy
+
+```bash
+helm template homelab homelab/homelab -f my-cluster.yaml | kubectl apply -f -
+```
+
+Or from a local clone:
 
 ```bash
 helm template homelab ./charts/homelab -f my-cluster.yaml | kubectl apply -f -
@@ -94,7 +127,7 @@ helm template homelab ./charts/homelab -f my-cluster.yaml | kubectl apply -f -
 
 ArgoCD takes over from here — it creates the sub-chart Applications and syncs them in order.
 
-### 3. Verify
+### 4. Verify
 
 ```bash
 kubectl get applications -n argocd
@@ -123,6 +156,8 @@ Each feature flag controls one or more operators and the platform resources that
 | **Reloader** | `reloader` | Reloader | Auto-restart pods on config changes |
 | **Storage** | `storage` | — | Local-path storage class configuration |
 
+See [Features](docs/features.md) for detailed documentation including dependency graph and configuration options.
+
 ### Overriding Defaults
 
 For fine-grained control, use the `overrides` section to pass values directly to any sub-chart:
@@ -150,7 +185,7 @@ overrides:
 
 ## Deploying Applications
 
-The platform includes [homelab-common](https://github.com/morten-olsen/homelab-apps), a Helm library chart that provides high-level abstractions for deploying applications. A minimal app needs three files:
+The platform publishes `homelab-common`, a Helm library chart that provides high-level abstractions for deploying applications. A minimal app needs three files:
 
 **Chart.yaml:**
 ```yaml
@@ -159,8 +194,8 @@ version: 1.0.0
 name: my-app
 dependencies:
   - name: homelab-common
-    version: 0.1.0
-    repository: https://morten-olsen.github.io/homelab-apps
+    version: ">=0.1.0"
+    repository: https://mortenolsen.pro/homelab-core/
 ```
 
 **templates/common.yaml:**
@@ -187,9 +222,32 @@ virtualService:
     private: true
 ```
 
+Then build and deploy:
+
+```bash
+helm dependency build
+helm template my-app . --set globals.domain=example.com | kubectl apply -f -
+```
+
 The common library handles Deployment, Service, VirtualService, PVC, DNS, OIDC, database provisioning, secrets, backups, and monitoring probes — all driven by values.
 
-See the [common chart README](https://github.com/morten-olsen/homelab-apps/blob/main/apps/common/README.md) for the full values reference.
+### What the common chart provides
+
+| Template | Resource | Triggered by |
+|----------|----------|-------------|
+| `common.deployment` | Deployment | `image` + `deployment` |
+| `common.service` | Service(s) | `service` |
+| `common.pvc` | PersistentVolumeClaim(s) | `persistentVolumeClaims` |
+| `common.virtualService` | Istio VirtualService | `virtualService.enabled` |
+| `common.serviceEntry` | Istio ServiceEntry | `virtualService.enabled` |
+| `common.dns` | DNSRecord | `dns.enabled` |
+| `common.oidc` | AuthentikClient | `oidc.enabled` |
+| `common.database` | PostgresDatabase | `database.enabled` |
+| `common.externalSecrets` | ExternalSecret + Password | `externalSecrets` |
+| `common.probe` | Blackbox Probe | `service` (auto) |
+| `common.backup` | VolSync ReplicationSource | PVC with `backup: true` |
+
+Use `{{ include "common.all" . }}` to render everything automatically, or include individual templates for more control.
 
 ## Local Development
 
@@ -235,6 +293,6 @@ kubectl get certificates -A
 kubectl describe certificate -n shared wildcard-tls
 
 # Render charts locally to debug
-helm template homelab ./charts/homelab -f my-cluster.yaml
+helm template homelab homelab/homelab -f my-cluster.yaml
 helm template shared ./charts/shared
 ```
