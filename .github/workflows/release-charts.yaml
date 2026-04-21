@@ -21,11 +21,48 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Install Helm
         uses: azure/setup-helm@v4
+
+      - name: Auto-bump changed chart versions
+        run: |
+          changed=false
+          for chart_dir in charts/*/; do
+            chart_yaml="${chart_dir}Chart.yaml"
+            [ -f "$chart_yaml" ] || continue
+
+            chart_name=$(grep '^name:' "$chart_yaml" | awk '{print $2}')
+            current_version=$(grep '^version:' "$chart_yaml" | awk '{print $2}')
+
+            # Check if a release already exists for this version
+            tag="${chart_name}-${current_version}"
+            if git tag -l "$tag" | grep -q "$tag"; then
+              # Release exists — check if chart has changes since that tag
+              if git diff --quiet "$tag" -- "$chart_dir"; then
+                echo "  skip: $chart_name ($current_version) — no changes"
+                continue
+              fi
+              # Chart changed since last release, bump patch version
+              major=$(echo "$current_version" | cut -d. -f1)
+              minor=$(echo "$current_version" | cut -d. -f2)
+              patch=$(echo "$current_version" | cut -d. -f3)
+              new_version="${major}.${minor}.$((patch + 1))"
+              sed -i "s/^version: ${current_version}/version: ${new_version}/" "$chart_yaml"
+              echo "  bump: $chart_name $current_version -> $new_version"
+              changed=true
+            else
+              echo "  new:  $chart_name ($current_version) — no existing release"
+            fi
+          done
+
+          if [ "$changed" = true ]; then
+            git add charts/*/Chart.yaml
+            git commit -m "Bump chart versions [skip ci]"
+            git push
+          fi
 
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.7.0
