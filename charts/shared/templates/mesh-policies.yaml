@@ -1,13 +1,13 @@
 {{- if .Values.resources.meshPolicy.enabled }}
 # ============================================================================
-# Kyverno RBAC: grant permissions to manage Istio AuthorizationPolicies.
+# Kyverno RBAC: grant permissions to manage mesh resources.
 # Uses Kyverno's label-based aggregation — no manual ClusterRoleBindings.
 # ============================================================================
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kyverno:istio-authz:edit
+  name: kyverno:mesh-resources:edit
   labels:
     rbac.kyverno.io/aggregate-to-admission-controller: "true"
     rbac.kyverno.io/aggregate-to-background-controller: "true"
@@ -15,6 +15,13 @@ rules:
   - apiGroups: ["security.istio.io"]
     resources: ["authorizationpolicies"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["networking.istio.io"]
+    resources: ["serviceentries"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["dns.homelab.mortenolsen.pro"]
+    resources: ["dnsrecords"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
 # ============================================================================
 # Kyverno ClusterPolicy: auto-generate namespace isolation
 #
@@ -22,9 +29,6 @@ rules:
 # homelab.mortenolsen.pro/mesh-isolation=skip, generate an Istio
 # AuthorizationPolicy that blocks cross-namespace traffic except
 # from the ingress gateway and monitoring (prometheus scraping).
-#
-# Effect: apps are reachable via their gateway URL (VirtualService)
-# but not via direct service calls from other namespaces.
 # ============================================================================
 ---
 apiVersion: kyverno.io/v1
@@ -68,150 +72,97 @@ spec:
                       notPrincipals:
                         - cluster.local/ns/istio-ingress/sa/gateway
 
-# ============================================================================
-# Label core-managed namespaces to skip mesh isolation.
-# These namespaces have their own access patterns (shared services,
-# monitoring scraping, demo apps) that don't fit the isolation model.
-# ============================================================================
-
 {{- if .Values.global.gatewayAddress }}
 # ============================================================================
-# Kyverno RBAC: grant permissions to manage Istio ServiceEntries.
-# ============================================================================
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: kyverno:istio-serviceentry:edit
-  labels:
-    rbac.kyverno.io/aggregate-to-admission-controller: "true"
-    rbac.kyverno.io/aggregate-to-background-controller: "true"
-rules:
-  - apiGroups: ["networking.istio.io"]
-    resources: ["serviceentries"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-# ============================================================================
-# Kyverno ClusterPolicy: auto-generate STATIC ServiceEntries
+# Kyverno GeneratingPolicy: auto-generate mesh resources from VirtualServices
 #
-# For any VirtualService that references the private gateway
-# (shared/private), generate a ServiceEntry with STATIC resolution
-# pointing to the gateway ClusterIP. Uses synchronize: true so
-# Kyverno manages the full lifecycle (create, update, delete).
+# For any VirtualService targeting the private gateway (shared/private),
+# generate:
+#   1. A STATIC ServiceEntry pointing to the gateway ClusterIP
+#   2. A DNSRecord (A record) pointing to the cluster IP
+#
+# Uses synchronize so Kyverno manages the full lifecycle — generated
+# resources are created, updated, and deleted with the VirtualService.
+#
+# Uses the new policies.kyverno.io/v1 GeneratingPolicy CRD with CEL
+# expressions (replaces the deprecated ClusterPolicy generate rules
+# which don't register webhooks for CRD resources).
 # ============================================================================
 ---
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
+apiVersion: policies.kyverno.io/v1
+kind: GeneratingPolicy
 metadata:
-  name: mesh-serviceentry-generation
+  name: mesh-virtualservice-resources
 spec:
-  admission: true
-  background: true
-  rules:
-    - name: generate-serviceentry
-      match:
-        any:
-          - resources:
-              kinds:
-                - networking.istio.io/v1/VirtualService
-      preconditions:
-        all:
-          - key: "shared/private"
-            operator: AnyIn
-            value: "{{`{{request.object.spec.gateways}}`}}"
-      context:
-        - name: externalHost
-          variable:
-            jmesPath: "request.object.spec.hosts[?@ != 'mesh'] | [0]"
-      generate:
-        synchronize: true
-        apiVersion: networking.istio.io/v1
-        kind: ServiceEntry
-        name: "{{`{{request.object.metadata.name}}`}}-mesh"
-        namespace: "{{`{{request.namespace}}`}}"
-        data:
-          spec:
-            hosts:
-              - "{{`{{externalHost}}`}}"
-            ports:
-              - number: 80
-                name: http
-                protocol: HTTP
-              - number: 443
-                name: https
-                protocol: HTTPS
-            resolution: STATIC
-            location: MESH_INTERNAL
-            endpoints:
-              - address: {{ .Values.global.gatewayAddress }}
-                ports:
-                  https: 443
+  evaluation:
+    synchronize:
+      enabled: true
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ['networking.istio.io']
+        apiVersions: ['v1']
+        operations: ['CREATE', 'UPDATE']
+        resources: ['virtualservices']
+  matchConditions:
+    - name: uses-private-gateway
+      expression: >-
+        object.spec.gateways.exists(g, g == 'shared/private')
+  variables:
+    - name: vsName
+      expression: 'object.metadata.name'
+    - name: vsNamespace
+      expression: 'object.metadata.namespace'
+    - name: externalHost
+      expression: >-
+        object.spec.hosts.filter(h, h != 'mesh')[0]
+    - name: subdomain
+      expression: >-
+        string(variables.externalHost).split('.')[0]
+    - name: downstream
+      expression: >-
+        [
+          {
+            "kind": dyn("ServiceEntry"),
+            "apiVersion": dyn("networking.istio.io/v1"),
+            "metadata": dyn({
+              "name": string(variables.vsName) + "-mesh",
+              "namespace": string(variables.vsNamespace)
+            }),
+            "spec": dyn({
+              "hosts": dyn([string(variables.externalHost)]),
+              "ports": dyn([
+                dyn({"number": 80, "name": "http", "protocol": "HTTP"}),
+                dyn({"number": 443, "name": "https", "protocol": "HTTPS"})
+              ]),
+              "resolution": "STATIC",
+              "location": "MESH_INTERNAL",
+              "endpoints": dyn([
+                dyn({
+                  "address": "{{ .Values.global.gatewayAddress }}",
+                  "ports": dyn({"https": 443})
+                })
+              ])
+            })
+          },
+          {
+            "kind": dyn("DNSRecord"),
+            "apiVersion": dyn("dns.homelab.mortenolsen.pro/v1alpha1"),
+            "metadata": dyn({
+              "name": string(variables.vsName) + "-dns",
+              "namespace": string(variables.vsNamespace)
+            }),
+            "spec": dyn({
+              "type": "A",
+              "domain": "{{ .Values.global.domain }}",
+              "subdomain": string(variables.subdomain),
+              "dnsClassRef": dyn({"name": "private-dns"}),
+              "values": dyn(["{{ .Values.global.ip }}"])
+            })
+          }
+        ]
+  generate:
+    - expression: >-
+        generator.Apply(variables.vsNamespace, variables.downstream)
 {{- end }}
-
-# ============================================================================
-# Kyverno RBAC: grant permissions to manage DNSRecords.
-# ============================================================================
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: kyverno:dns-record:edit
-  labels:
-    rbac.kyverno.io/aggregate-to-admission-controller: "true"
-    rbac.kyverno.io/aggregate-to-background-controller: "true"
-rules:
-  - apiGroups: ["dns.homelab.mortenolsen.pro"]
-    resources: ["dnsrecords"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-# ============================================================================
-# Kyverno ClusterPolicy: auto-generate private DNS records
-#
-# For any VirtualService that references the private gateway
-# (shared/private) and whose host ends with the platform domain,
-# generate a DNSRecord pointing to the cluster IP. The subdomain
-# is extracted from the host by stripping the domain suffix.
-#
-# Uses synchronize: true so Kyverno manages the full lifecycle
-# (create, update, delete when the VirtualService is removed).
-# ============================================================================
----
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
-metadata:
-  name: mesh-dns-generation
-spec:
-  admission: true
-  background: true
-  rules:
-    - name: generate-private-dns
-      match:
-        any:
-          - resources:
-              kinds:
-                - networking.istio.io/v1/VirtualService
-      preconditions:
-        all:
-          - key: "shared/private"
-            operator: AnyIn
-            value: "{{`{{request.object.spec.gateways}}`}}"
-      context:
-        - name: subdomain
-          variable:
-            jmesPath: "request.object.spec.hosts[?@ != 'mesh'] | [0]"
-            default: ""
-      generate:
-        synchronize: true
-        apiVersion: dns.homelab.mortenolsen.pro/v1alpha1
-        kind: DNSRecord
-        name: "{{`{{request.object.metadata.name}}`}}-dns"
-        namespace: "{{`{{request.namespace}}`}}"
-        data:
-          spec:
-            type: A
-            domain: {{ .Values.global.domain }}
-            subdomain: "{{`{{ regex_replace_all('\\..*$', '{{subdomain}}', '') }}`}}"
-            dnsClassRef:
-              name: private-dns
-            values:
-              - {{ .Values.global.ip | quote }}
 
 {{- end }}
