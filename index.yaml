@@ -2,6 +2,26 @@ apiVersion: v1
 entries:
   homelab:
   - apiVersion: v2
+    created: "2026-04-22T12:41:31.979653042Z"
+    description: Turnkey Kubernetes platform — GitOps, service mesh, monitoring, and
+      more
+    digest: 3e480347374e0db7c75ad2d2d4f6e5d8f0eb81fb016056f28fa6e8c6ffd92ea8
+    home: https://github.com/morten-olsen/homelab-core
+    keywords:
+    - homelab
+    - kubernetes
+    - platform
+    - gitops
+    - argocd
+    maintainers:
+    - name: Morten Olsen
+    name: homelab
+    sources:
+    - https://github.com/morten-olsen/homelab-core
+    urls:
+    - https://github.com/morten-olsen/homelab-core/releases/download/homelab-0.1.6/homelab-0.1.6.tgz
+    version: 0.1.6
+  - apiVersion: v2
     created: "2026-04-22T12:36:34.481241234Z"
     description: Turnkey Kubernetes platform — GitOps, service mesh, monitoring, and
       more
@@ -327,4 +347,4 @@ entries:
     urls:
     - https://github.com/morten-olsen/homelab-core/releases/download/homelab-shared-0.1.1/homelab-shared-0.1.1.tgz
     version: 0.1.1
-generated: "2026-04-22T12:36:34.645255205Z"
+generated: "2026-04-22T12:41:31.979698917Z"
