@@ -2,6 +2,26 @@ apiVersion: v1
 entries:
   homelab:
   - apiVersion: v2
+    created: "2026-04-22T12:16:28.112535182Z"
+    description: Turnkey Kubernetes platform — GitOps, service mesh, monitoring, and
+      more
+    digest: 751a9267c6fe4009c1d9a0da7a0718522527dc356f9c15ae1e8cb941c9cfe2ec
+    home: https://github.com/morten-olsen/homelab-core
+    keywords:
+    - homelab
+    - kubernetes
+    - platform
+    - gitops
+    - argocd
+    maintainers:
+    - name: Morten Olsen
+    name: homelab
+    sources:
+    - https://github.com/morten-olsen/homelab-core
+    urls:
+    - https://github.com/morten-olsen/homelab-core/releases/download/homelab-0.1.3/homelab-0.1.3.tgz
+    version: 0.1.3
+  - apiVersion: v2
     created: "2026-04-22T12:00:13.569053555Z"
     description: Turnkey Kubernetes platform — GitOps, service mesh, monitoring, and
       more
@@ -179,6 +199,24 @@ entries:
   homelab-shared:
   - apiVersion: v2
     appVersion: "1.0"
+    created: "2026-04-22T12:16:28.347464368Z"
+    description: Shared resources for homelab Kubernetes cluster
+    digest: a1df44c89373b2609a14c9bee0ce58f1dc689f7bd78db559d05daca6514741e6
+    home: https://github.com/morten-olsen/homelab-core
+    keywords:
+    - homelab
+    - kubernetes
+    - shared
+    - gateway
+    - istio
+    name: homelab-shared
+    sources:
+    - https://github.com/morten-olsen/homelab-core
+    urls:
+    - https://github.com/morten-olsen/homelab-core/releases/download/homelab-shared-0.1.3/homelab-shared-0.1.3.tgz
+    version: 0.1.3
+  - apiVersion: v2
+    appVersion: "1.0"
     created: "2026-04-22T12:00:14.067397424Z"
     description: Shared resources for homelab Kubernetes cluster
     digest: 65e03243986ca2a85a2d23e967c3676988ab6174cec93e0b64af44bd12b66c6b
@@ -213,4 +251,4 @@ entries:
     urls:
     - https://github.com/morten-olsen/homelab-core/releases/download/homelab-shared-0.1.1/homelab-shared-0.1.1.tgz
     version: 0.1.1
-generated: "2026-04-22T12:00:14.06743242Z"
+generated: "2026-04-22T12:16:28.347491158Z"
