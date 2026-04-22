@@ -385,6 +385,22 @@ entries:
   homelab-core:
   - apiVersion: v2
     appVersion: "1.0"
+    created: "2026-04-22T19:13:27.839119986Z"
+    description: Core operators for homelab Kubernetes cluster
+    digest: 4ab4ed11074840e36946cc51a64a2c19f1acac7f4738f01dc244034a768634dd
+    home: https://github.com/morten-olsen/homelab-core
+    keywords:
+    - homelab
+    - kubernetes
+    - operators
+    name: homelab-core
+    sources:
+    - https://github.com/morten-olsen/homelab-core
+    urls:
+    - https://github.com/morten-olsen/homelab-core/releases/download/homelab-core-0.1.2/homelab-core-0.1.2.tgz
+    version: 0.1.2
+  - apiVersion: v2
+    appVersion: "1.0"
     created: "2026-04-21T22:07:29.828476906Z"
     description: Core operators for homelab Kubernetes cluster
     digest: c6975b4b427ffaf6320adf96ff64f20603ee89ab374e32b7b32fa4a5a5e7db04
@@ -732,4 +748,4 @@ entries:
     urls:
     - https://github.com/morten-olsen/homelab-core/releases/download/homelab-shared-0.1.1/homelab-shared-0.1.1.tgz
     version: 0.1.1
-generated: "2026-04-22T18:09:01.316880493Z"
+generated: "2026-04-22T19:13:27.839205085Z"
