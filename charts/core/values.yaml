@@ -219,6 +219,11 @@ operators:
     namespace: kyverno
     repoURL: https://kyverno.github.io/kyverno
     chart: kyverno
+    values:
+      admissionController:
+        container:
+          args:
+            crdWatcher: true
     syncPolicy:
       automated:
         prune: true
