@@ -23,6 +23,26 @@ entries:
     version: 0.1.1
   homelab-common:
   - apiVersion: v2
+    created: "2026-04-22T09:20:27.089789981Z"
+    description: Shared Helm library chart for deploying applications on the homelab
+      platform
+    digest: b32f776e00c205507f5093c7112448185e89157f2a04a0c226fa7bb3e5c9899f
+    home: https://github.com/morten-olsen/homelab-core
+    keywords:
+    - homelab
+    - kubernetes
+    - library
+    - common
+    maintainers:
+    - name: Morten Olsen
+    name: homelab-common
+    sources:
+    - https://github.com/morten-olsen/homelab-core
+    type: library
+    urls:
+    - https://github.com/morten-olsen/homelab-core/releases/download/homelab-common-0.1.2/homelab-common-0.1.2.tgz
+    version: 0.1.2
+  - apiVersion: v2
     created: "2026-04-21T22:31:24.26144844Z"
     description: Shared Helm library chart for deploying applications on the homelab
       platform
@@ -117,4 +137,4 @@ entries:
     urls:
     - https://github.com/morten-olsen/homelab-core/releases/download/homelab-shared-0.1.1/homelab-shared-0.1.1.tgz
     version: 0.1.1
-generated: "2026-04-21T22:31:24.261461787Z"
+generated: "2026-04-22T09:20:27.089805765Z"
