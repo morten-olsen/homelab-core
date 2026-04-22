@@ -575,28 +575,9 @@ spec:
      from VirtualServices targeting the private gateway. See shared chart
      mesh-policies.yaml for the ClusterPolicy. */}}
 
-{{- define "common._dns" -}}
-{{- if and .Values.dns .Values.dns.enabled (hasKey .Values.globals "networking") (hasKey .Values.globals.networking "private") (hasKey .Values.globals.networking.private "ip") (ne .Values.globals.networking.private.ip "") }}
----
-apiVersion: dns.homelab.mortenolsen.pro/v1alpha1
-kind: DNSRecord
-metadata:
-  name: {{ include "common.fullname" . }}
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "common.labels" . | nindent 4 }}
-spec:
-  type: {{ .Values.dns.type | default "A" }}
-  domain: {{ .Values.globals.domain }}
-  subdomain: {{ .Values.subdomain }}
-  {{- if .Values.dns.dnsClassRef }}
-  dnsClassRef:
-    {{- toYaml .Values.dns.dnsClassRef | nindent 4 }}
-  {{- end }}
-  values:
-    - {{ .Values.globals.networking.private.ip | quote }}
-{{- end }}
-{{- end }}
+{{/* common._dns removed — Kyverno auto-generates DNSRecords from
+     VirtualServices targeting the private gateway. See shared chart
+     mesh-policies.yaml for the ClusterPolicy. */}}
 
 {{- define "common._oidc" -}}
 {{- if and .Values.oidc .Values.oidc.enabled (hasKey .Values.globals "authentik") (hasKey .Values.globals.authentik "ref") (hasKey .Values.globals.authentik.ref "name") (hasKey .Values.globals.authentik.ref "namespace") (ne .Values.globals.authentik.ref.name "") (ne .Values.globals.authentik.ref.namespace "") }}
@@ -797,7 +778,6 @@ spec:
 {{- include "common._service" $ctx }}
 {{- include "common._pvc" $ctx }}
 {{- include "common._virtualService" $ctx }}
-{{- include "common._dns" $ctx }}
 {{- include "common._oidc" $ctx }}
 {{- include "common._database" $ctx }}
 {{- include "common._externalSecrets" $ctx }}
@@ -827,9 +807,7 @@ spec:
 
 {{/* common.serviceEntry removed — handled by Kyverno */}}
 
-{{- define "common.dns" -}}
-{{- include "common._render" (list "common._dns" (index . 0) (index . 1)) -}}
-{{- end }}
+{{/* common.dns removed — handled by Kyverno */}}
 
 {{- define "common.oidc" -}}
 {{- include "common._render" (list "common._oidc" (index . 0) (index . 1)) -}}

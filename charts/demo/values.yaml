@@ -1,3 +1,0 @@
-domain: local.olsen.cloud
-gateway:
-  private: shared/private

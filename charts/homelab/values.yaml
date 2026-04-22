@@ -65,9 +65,6 @@ features:
   # Mesh-wide authorization policies — default deny + shared service allow rules
   meshPolicy: true
 
-  # Demo applications
-  demo: true
-
 # -- Backup configuration (when features.backup is true) -------------------
 backup:
   nfs:

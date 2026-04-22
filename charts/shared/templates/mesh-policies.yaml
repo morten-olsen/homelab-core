@@ -157,4 +157,82 @@ spec:
                   https: 443
 {{- end }}
 
+# ============================================================================
+# Kyverno RBAC: grant permissions to manage DNSRecords.
+# ============================================================================
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno:dns-record:edit
+  labels:
+    rbac.kyverno.io/aggregate-to-admission-controller: "true"
+    rbac.kyverno.io/aggregate-to-background-controller: "true"
+rules:
+  - apiGroups: ["dns.homelab.mortenolsen.pro"]
+    resources: ["dnsrecords"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# ============================================================================
+# Kyverno ClusterPolicy: auto-generate private DNS records
+#
+# For any VirtualService that references the private gateway
+# (shared/private) and whose host ends with the platform domain,
+# generate a DNSRecord pointing to the cluster IP. The subdomain
+# is extracted from the host by stripping the domain suffix.
+#
+# The generated DNSRecord has an ownerReference to the VirtualService,
+# so Kubernetes GC deletes it when the VirtualService is removed.
+# ============================================================================
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: mesh-dns-generation
+spec:
+  admission: true
+  background: true
+  rules:
+    - name: generate-private-dns
+      match:
+        any:
+          - resources:
+              kinds:
+                - networking.istio.io/v1/VirtualService
+      preconditions:
+        all:
+          - key: "shared/private"
+            operator: AnyIn
+            value: "{{`{{request.object.spec.gateways}}`}}"
+          - key: "{{`{{request.object.spec.hosts[?@ != 'mesh'] | [0] | ends_with(@, '`}}.{{ .Values.global.domain }}{{`')}}`}}"
+            operator: Equals
+            value: true
+      context:
+        - name: externalHost
+          variable:
+            jmesPath: "request.object.spec.hosts[?@ != 'mesh'] | [0]"
+        - name: subdomain
+          variable:
+            jmesPath: "request.object.spec.hosts[?@ != 'mesh'] | [0] | split('.', @) | [0]"
+      generate:
+        synchronize: false
+        apiVersion: dns.homelab.mortenolsen.pro/v1alpha1
+        kind: DNSRecord
+        name: "{{`{{request.object.metadata.name}}`}}-dns"
+        namespace: "{{`{{request.namespace}}`}}"
+        data:
+          metadata:
+            ownerReferences:
+              - apiVersion: networking.istio.io/v1
+                kind: VirtualService
+                name: "{{`{{request.object.metadata.name}}`}}"
+                uid: "{{`{{request.object.metadata.uid}}`}}"
+          spec:
+            type: A
+            domain: {{ .Values.global.domain }}
+            subdomain: "{{`{{subdomain}}`}}"
+            dnsClassRef:
+              name: private-dns
+            values:
+              - {{ .Values.global.ip | quote }}
+
 {{- end }}
