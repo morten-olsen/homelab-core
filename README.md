@@ -1,5 +1,7 @@
 # Homelab Platform
 
+> **Note:** This project powers my personal homelab. It is shared as a reference and starting point, not as a supported product. Breaking changes happen without warning and versions are not guaranteed to be stable. If you want to use this, **fork it** rather than depending on it directly.
+
 A turnkey Kubernetes platform built with Helm and ArgoCD. Provides a complete, standards-based foundation for running applications on Kubernetes — from a single-node homelab to a production cluster.
 
 **What you get:** GitOps deployment, service mesh with ingress, TLS certificates, OIDC authentication, managed databases, monitoring and alerting, security scanning, encrypted backups, and DNS management — all controlled through feature flags in a single values file.
