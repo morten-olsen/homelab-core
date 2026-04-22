@@ -665,7 +665,7 @@ spec:
 {{- end }}
 {{- end }}
 
-{{- define "common._externalSecrets" -}}
+{{- define "common._externalSecrets.passwordGenerators" -}}
 {{- if .Values.externalSecrets }}
 {{- range .Values.externalSecrets }}
 {{- $secretName := .name | default (printf "%s-%s" $.Release.Name "secrets") }}
@@ -694,6 +694,11 @@ spec:
   {{- end }}
 {{- end }}
 {{- end }}
+{{- end }}
+{{- end }}
+
+{{- define "common._externalSecrets.externalSecrets" -}}
+{{- if .Values.externalSecrets }}
 {{- range .Values.externalSecrets }}
 {{- $secretName := .name | default (printf "%s-%s" $.Release.Name "secrets") }}
 {{- $secretName = $secretName | replace "{release}" $.Release.Name | replace "{fullname}" (include "common.fullname" $) }}
@@ -720,6 +725,11 @@ spec:
     {{- end }}
 {{- end }}
 {{- end }}
+{{- end }}
+
+{{- define "common._externalSecrets" -}}
+{{- include "common._externalSecrets.passwordGenerators" . }}
+{{- include "common._externalSecrets.externalSecrets" . }}
 {{- end }}
 
 {{- define "common._probe" -}}
@@ -861,6 +871,28 @@ spec:
 
 {{- define "common.externalSecrets" -}}
 {{- include "common._render" (list "common._externalSecrets" (index . 0) (index . 1)) -}}
+{{- end }}
+
+{{/*
+Sub-entry points for external secrets — allow separate deployment of
+password generators and ExternalSecrets (for sync-wave ordering).
+Accept both (list root appValues) and raw root context for use in
+custom templates that mix common helpers with app-specific logic.
+*/}}
+{{- define "common.externalSecrets.passwordGenerators" -}}
+{{- if kindIs "slice" . -}}
+{{- include "common._render" (list "common._externalSecrets.passwordGenerators" (index . 0) (index . 1)) -}}
+{{- else -}}
+{{- include "common._externalSecrets.passwordGenerators" . -}}
+{{- end -}}
+{{- end }}
+
+{{- define "common.externalSecrets.externalSecrets" -}}
+{{- if kindIs "slice" . -}}
+{{- include "common._render" (list "common._externalSecrets.externalSecrets" (index . 0) (index . 1)) -}}
+{{- else -}}
+{{- include "common._externalSecrets.externalSecrets" . -}}
+{{- end -}}
 {{- end }}
 
 {{- define "common.probe" -}}
