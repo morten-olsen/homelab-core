@@ -279,6 +279,15 @@ entries:
     urls:
     - https://github.com/morten-olsen/homelab-core/releases/download/homelab-core-0.1.1/homelab-core-0.1.1.tgz
     version: 0.1.1
+  homelab-demo:
+  - apiVersion: v2
+    appVersion: "1.0"
+    created: "2026-04-22T16:29:14.932127838Z"
+    digest: 21acbc79e1ac507a96741254c1b0a3f99eb8b650ade37685e3d58508f429a58b
+    name: homelab-demo
+    urls:
+    - https://github.com/morten-olsen/homelab-core/releases/download/homelab-demo-0.1.1/homelab-demo-0.1.1.tgz
+    version: 0.1.1
   homelab-monitor:
   - apiVersion: v2
     appVersion: "1.0"
@@ -461,4 +470,4 @@ entries:
     urls:
     - https://github.com/morten-olsen/homelab-core/releases/download/homelab-shared-0.1.1/homelab-shared-0.1.1.tgz
     version: 0.1.1
-generated: "2026-04-22T14:19:53.527978652Z"
+generated: "2026-04-22T16:29:14.932207577Z"
