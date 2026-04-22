@@ -12,6 +12,9 @@ spec:
     repoURL: {{ .Values.source.repoUrl | quote }}
     targetRevision: {{ .Values.source.targetRevision | quote }}
     path: charts/demo
+    helm:
+      values: |
+        gatewayAddress: {{ .Values.platform.gatewayAddress }}
   destination:
     server: https://kubernetes.default.svc
     namespace: demo

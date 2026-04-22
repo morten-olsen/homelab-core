@@ -46,8 +46,8 @@ spec:
     protocol: TCP
     name: http
   type: ClusterIP
+{{- if .Values.gatewayAddress }}
 ---
-{{- $gwSvc := lookup "v1" "Service" "istio-ingress" "gateway" }}
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
 metadata:
@@ -63,22 +63,13 @@ spec:
   - number: 443
     name: https
     protocol: HTTPS
-  {{- if $gwSvc }}
   resolution: STATIC
-  {{- else }}
-  resolution: DNS
-  {{- end }}
   location: MESH_INTERNAL
   endpoints:
-  {{- if $gwSvc }}
-  - address: {{ $gwSvc.spec.clusterIP }}
+  - address: {{ .Values.gatewayAddress }}
     ports:
       https: 443
-  {{- else }}
-  - address: gateway.istio-ingress.svc.cluster.local
-    ports:
-      https: 443
-  {{- end }}
+{{- end }}
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService

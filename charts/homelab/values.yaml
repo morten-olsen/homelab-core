@@ -9,6 +9,7 @@ source:
 platform:
   domain: olsen.cloud
   ip: 192.168.20.180
+  gatewayAddress: "10.43.245.222"  # Istio gateway Service ClusterIP — used for STATIC ServiceEntry resolution
   additionalDomains:
     - "*.coder.olsen.cloud"
   email: ""

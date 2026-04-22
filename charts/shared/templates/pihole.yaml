@@ -1,7 +1,7 @@
 {{- if .Values.resources.pihole.enabled -}}
 {{- $pihole := .Values.resources.pihole -}}
 {{- $global := .Values.global -}}
-{{- $gwSvc := lookup "v1" "Service" "istio-ingress" "gateway" -}}
+{{- $gwAddr := $global.gatewayAddress | default "" -}}
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
@@ -134,6 +134,7 @@ spec:
             host: "pihole-http"
             port:
               number: 80
+{{- if $gwAddr }}
 ---
 apiVersion: networking.istio.io/v1
 kind: ServiceEntry
@@ -150,20 +151,11 @@ spec:
     - number: 443
       name: https
       protocol: HTTPS
-  {{- if $gwSvc }}
   resolution: STATIC
-  {{- else }}
-  resolution: DNS
-  {{- end }}
   location: MESH_INTERNAL
   endpoints:
-    {{- if $gwSvc }}
-    - address: {{ $gwSvc.spec.clusterIP }}
+    - address: {{ $gwAddr }}
       ports:
         https: 443
-    {{- else }}
-    - address: gateway.istio-ingress.svc.cluster.local
-      ports:
-        https: 443
-    {{- end }}
+{{- end }}
 {{- end }}

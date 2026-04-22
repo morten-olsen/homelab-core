@@ -55,6 +55,7 @@ global:
   project: shared
   domain: {{ .Values.platform.domain }}
   ip: {{ .Values.platform.ip }}
+  gatewayAddress: {{ .Values.platform.gatewayAddress }}
   {{- with .Values.platform.additionalDomains }}
   additionalDomains:
     {{- toYaml . | nindent 4 }}
@@ -105,6 +106,7 @@ Constructs the helm values YAML block for the monitoring sub-chart.
 global:
   domain: {{ .Values.platform.domain }}
   ip: {{ .Values.platform.ip }}
+  gatewayAddress: {{ .Values.platform.gatewayAddress }}
   project: monitor
 ntfy:
   url: {{ .Values.monitoring.ntfy.url }}

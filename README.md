@@ -83,6 +83,7 @@ source:
 platform:
   domain: example.com
   ip: 10.0.0.1
+  gatewayAddress: ""  # set after first deploy — see note below
   email: admin@example.com
   timezone: UTC
   acme: staging  # use "prod" once DNS is verified
@@ -126,6 +127,16 @@ Or from a local clone:
 ```bash
 helm template homelab ./charts/homelab -f my-cluster.yaml | kubectl apply -f -
 ```
+
+### 4. Set the gateway address (after first deploy)
+
+After the initial deploy creates the Istio gateway Service, set `platform.gatewayAddress` to its ClusterIP:
+
+```bash
+kubectl get svc -n istio-ingress gateway -o jsonpath='{.spec.clusterIP}'
+```
+
+Add this to your values file and re-deploy. This enables STATIC ServiceEntry resolution, which prevents mesh-internal DNS hairpinning without generating DNS queries from every Envoy sidecar. Without this value, ServiceEntries are omitted and mesh-internal routing via public hostnames won't work (external routing is unaffected).
 
 ArgoCD takes over from here — it creates the sub-chart Applications and syncs them in order.
 
