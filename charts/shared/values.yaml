@@ -1,12 +1,11 @@
 global:
   project: shared
-  domain: olsen.cloud
-  ip: 192.168.20.180
-  additionalDomains:
-    - "*.coder.olsen.cloud"
-  email:
-  timezone: Europe/Amsterdam
-  acme: prod
+  domain: ""
+  ip: ""
+  additionalDomains: []
+  email: ""
+  timezone: UTC
+  acme: staging
   syncPolicy:
     automated:
       prune: true
@@ -108,8 +107,8 @@ resources:
   backups:
     enabled: true
     nfs:
-      server: 192.168.20.106
-      path: /mnt/HDD/k8s/backups
+      server: ""
+      path: ""
     sources:
       pihole:
         pvcName: pihole-data

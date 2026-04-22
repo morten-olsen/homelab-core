@@ -1,0 +1,26 @@
+{{/*
+Validation rules — fail early with clear messages when required
+configuration is missing. This file outputs no resources.
+*/}}
+
+{{- if not .Values.platform.domain }}
+  {{- fail "platform.domain is required (e.g., example.com)" }}
+{{- end }}
+{{- if not .Values.platform.ip }}
+  {{- fail "platform.ip is required (e.g., 10.0.0.1)" }}
+{{- end }}
+{{- if not .Values.source.repoUrl }}
+  {{- fail "source.repoUrl is required — the git repo URL for the platform charts" }}
+{{- end }}
+
+{{- if .Values.features.backup }}
+  {{- if or (not .Values.backup.nfs.server) (not .Values.backup.nfs.path) }}
+    {{- fail "backup.nfs.server and backup.nfs.path are required when features.backup is enabled" }}
+  {{- end }}
+{{- end }}
+
+{{- if .Values.features.monitoring }}
+  {{- if or (not .Values.monitoring.ntfy.url) (not .Values.monitoring.ntfy.topic) }}
+    {{- fail "monitoring.ntfy.url and monitoring.ntfy.topic are required when features.monitoring is enabled" }}
+  {{- end }}
+{{- end }}

@@ -1,6 +1,6 @@
 global:
-  domain: olsen.cloud
-  ip: 192.168.20.180
+  domain: ""
+  ip: ""
   project: monitor
   syncPolicy:
     automated:
@@ -12,8 +12,8 @@ global:
       - CreateNamespace=true
 
 ntfy:
-  url: http://ntfy.prod.svc.cluster.local
-  topic: homelab-alerts
+  url: ""
+  topic: ""
 
 monitoring:
   prometheus-operator:
@@ -216,8 +216,8 @@ blackboxExporter:
 backups:
   enabled: true
   nfs:
-    server: 192.168.20.106
-    path: /mnt/HDD/k8s/backups
+    server: ""
+    path: ""
   sources:
     grafana:
       pvcName: prometheus-operator-grafana
