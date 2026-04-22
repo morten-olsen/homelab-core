@@ -532,6 +532,24 @@ entries:
   homelab-shared:
   - apiVersion: v2
     appVersion: "1.0"
+    created: "2026-04-22T19:36:32.54029667Z"
+    description: Shared resources for homelab Kubernetes cluster
+    digest: 8a1a9c056fd91813f691efa529528792d740521256c7b16a7e0ee6e3f040bc22
+    home: https://github.com/morten-olsen/homelab-core
+    keywords:
+    - homelab
+    - kubernetes
+    - shared
+    - gateway
+    - istio
+    name: homelab-shared
+    sources:
+    - https://github.com/morten-olsen/homelab-core
+    urls:
+    - https://github.com/morten-olsen/homelab-core/releases/download/homelab-shared-0.1.18/homelab-shared-0.1.18.tgz
+    version: 0.1.18
+  - apiVersion: v2
+    appVersion: "1.0"
     created: "2026-04-22T19:29:26.014005294Z"
     description: Shared resources for homelab Kubernetes cluster
     digest: eafd963ca04d55185396b3c8220181c6c74ca8bfd5d819a7e3fd309d88030cbe
@@ -836,4 +854,4 @@ entries:
     urls:
     - https://github.com/morten-olsen/homelab-core/releases/download/homelab-shared-0.1.1/homelab-shared-0.1.1.tgz
     version: 0.1.1
-generated: "2026-04-22T19:29:26.014180634Z"
+generated: "2026-04-22T19:36:32.54052232Z"
