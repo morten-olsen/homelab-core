@@ -1,7 +1,6 @@
 {{- if .Values.resources.pihole.enabled -}}
 {{- $pihole := .Values.resources.pihole -}}
 {{- $global := .Values.global -}}
-{{- $gwAddr := $global.gatewayAddress | default "" -}}
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
@@ -134,28 +133,4 @@ spec:
             host: "pihole-http"
             port:
               number: 80
-{{- if $gwAddr }}
----
-apiVersion: networking.istio.io/v1
-kind: ServiceEntry
-metadata:
-  name: "pihole-mesh"
-  namespace: "{{ .Release.Namespace }}"
-spec:
-  hosts:
-    - "{{ $pihole.subdomain }}.{{ $global.domain }}"
-  ports:
-    - number: 80
-      name: http
-      protocol: HTTP
-    - number: 443
-      name: https
-      protocol: HTTPS
-  resolution: STATIC
-  location: MESH_INTERNAL
-  endpoints:
-    - address: {{ $gwAddr }}
-      ports:
-        https: 443
-{{- end }}
 {{- end }}

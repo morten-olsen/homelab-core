@@ -538,7 +538,7 @@ spec:
               {{- end }}
 
 {{- end }}
-{{- if and .Values.virtualService.gateways .Values.virtualService.gateways.private (hasKey .Values.globals "istio") (hasKey .Values.globals.istio "gateways") (hasKey .Values.globals.istio.gateways "private") (ne .Values.globals.istio.gateways.private "") }}
+{{- if and .Values.virtualService.gateways (or .Values.virtualService.gateways.private .Values.virtualService.gateways.public) (hasKey .Values.globals "istio") (hasKey .Values.globals.istio "gateways") (hasKey .Values.globals.istio.gateways "private") (ne .Values.globals.istio.gateways.private "") }}
 ---
 apiVersion: networking.istio.io/v1
 kind: VirtualService
@@ -571,50 +571,9 @@ spec:
 {{- end }}
 {{- end }}
 
-{{- define "common._serviceEntry" -}}
-{{- if .Values.virtualService }}
-{{- if and .Values.virtualService.enabled .Values.subdomain (hasKey .Values.globals "domain") (ne .Values.globals.domain "") }}
-{{- $gwAddr := "" }}
-{{- if and (hasKey .Values.globals "istio") (hasKey .Values.globals.istio "gatewayAddress") }}
-{{- $gwAddr = .Values.globals.istio.gatewayAddress }}
-{{- end }}
----
-apiVersion: networking.istio.io/v1
-kind: ServiceEntry
-metadata:
-  name: {{ include "common.fullname" . }}-mesh
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "common.labels" . | nindent 4 }}
-spec:
-  hosts:
-    - {{ include "common.domain" . }}
-  ports:
-    - number: 80
-      name: http
-      protocol: HTTP
-    - number: 443
-      name: https
-      protocol: HTTPS
-  {{- if $gwAddr }}
-  resolution: STATIC
-  {{- else }}
-  resolution: DNS
-  {{- end }}
-  location: MESH_INTERNAL
-  endpoints:
-    {{- if $gwAddr }}
-    - address: {{ $gwAddr }}
-      ports:
-        https: 443
-    {{- else }}
-    - address: gateway.istio-ingress.svc.cluster.local
-      ports:
-        https: 443
-    {{- end }}
-{{- end }}
-{{- end }}
-{{- end }}
+{{/* common._serviceEntry removed — Kyverno auto-generates ServiceEntries
+     from VirtualServices targeting the private gateway. See shared chart
+     mesh-policies.yaml for the ClusterPolicy. */}}
 
 {{- define "common._dns" -}}
 {{- if and .Values.dns .Values.dns.enabled (hasKey .Values.globals "networking") (hasKey .Values.globals.networking "private") (hasKey .Values.globals.networking.private "ip") (ne .Values.globals.networking.private.ip "") }}
@@ -838,7 +797,6 @@ spec:
 {{- include "common._service" $ctx }}
 {{- include "common._pvc" $ctx }}
 {{- include "common._virtualService" $ctx }}
-{{- include "common._serviceEntry" $ctx }}
 {{- include "common._dns" $ctx }}
 {{- include "common._oidc" $ctx }}
 {{- include "common._database" $ctx }}
@@ -867,9 +825,7 @@ spec:
 {{- include "common._render" (list "common._virtualService" (index . 0) (index . 1)) -}}
 {{- end }}
 
-{{- define "common.serviceEntry" -}}
-{{- include "common._render" (list "common._serviceEntry" (index . 0) (index . 1)) -}}
-{{- end }}
+{{/* common.serviceEntry removed — handled by Kyverno */}}
 
 {{- define "common.dns" -}}
 {{- include "common._render" (list "common._dns" (index . 0) (index . 1)) -}}

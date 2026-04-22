@@ -74,4 +74,87 @@ spec:
 # monitoring scraping, demo apps) that don't fit the isolation model.
 # ============================================================================
 
+{{- if .Values.global.gatewayAddress }}
+# ============================================================================
+# Kyverno RBAC: grant permissions to manage Istio ServiceEntries.
+# ============================================================================
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno:istio-serviceentry:edit
+  labels:
+    rbac.kyverno.io/aggregate-to-admission-controller: "true"
+    rbac.kyverno.io/aggregate-to-background-controller: "true"
+rules:
+  - apiGroups: ["networking.istio.io"]
+    resources: ["serviceentries"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# ============================================================================
+# Kyverno ClusterPolicy: auto-generate STATIC ServiceEntries
+#
+# For any VirtualService that references the private gateway
+# (shared/private), generate a ServiceEntry with STATIC resolution
+# pointing to the gateway ClusterIP. This prevents DNS hairpinning
+# for mesh-internal traffic to public hostnames without generating
+# DNS queries from Envoy sidecars.
+#
+# The generated ServiceEntry has an ownerReference to the VirtualService,
+# so Kubernetes GC deletes it when the VirtualService is removed.
+# ============================================================================
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: mesh-serviceentry-generation
+spec:
+  admission: true
+  background: true
+  rules:
+    - name: generate-serviceentry
+      match:
+        any:
+          - resources:
+              kinds:
+                - networking.istio.io/v1/VirtualService
+      preconditions:
+        all:
+          - key: "shared/private"
+            operator: AnyIn
+            value: "{{`{{request.object.spec.gateways}}`}}"
+      context:
+        - name: externalHost
+          variable:
+            jmesPath: "request.object.spec.hosts[?@ != 'mesh'] | [0]"
+      generate:
+        synchronize: false
+        apiVersion: networking.istio.io/v1
+        kind: ServiceEntry
+        name: "{{`{{request.object.metadata.name}}`}}-mesh"
+        namespace: "{{`{{request.namespace}}`}}"
+        data:
+          metadata:
+            ownerReferences:
+              - apiVersion: networking.istio.io/v1
+                kind: VirtualService
+                name: "{{`{{request.object.metadata.name}}`}}"
+                uid: "{{`{{request.object.metadata.uid}}`}}"
+          spec:
+            hosts:
+              - "{{`{{externalHost}}`}}"
+            ports:
+              - number: 80
+                name: http
+                protocol: HTTP
+              - number: 443
+                name: https
+                protocol: HTTPS
+            resolution: STATIC
+            location: MESH_INTERNAL
+            endpoints:
+              - address: {{ .Values.global.gatewayAddress }}
+                ports:
+                  https: 443
+{{- end }}
+
 {{- end }}

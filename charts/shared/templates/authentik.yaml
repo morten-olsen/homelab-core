@@ -1,7 +1,6 @@
 {{- if .Values.resources.authentik.enabled -}}
 {{- $auth := .Values.resources.authentik -}}
 {{- $global := .Values.global -}}
-{{- $gwAddr := $global.gatewayAddress | default "" -}}
 apiVersion: postgres.homelab.mortenolsen.pro/v1
 kind: PostgresDatabase
 metadata:
@@ -90,29 +89,5 @@ spec:
             port:
               number: 9000
 
-{{- if $gwAddr }}
----
-apiVersion: networking.istio.io/v1
-kind: ServiceEntry
-metadata:
-  name: "authentik-mesh"
-  namespace: "{{ .Release.Namespace }}"
-spec:
-  hosts:
-    - "{{ $auth.subdomain }}.{{ $global.domain }}"
-  ports:
-    - number: 80
-      name: http
-      protocol: HTTP
-    - number: 443
-      name: https
-      protocol: HTTPS
-  resolution: STATIC
-  location: MESH_INTERNAL
-  endpoints:
-    - address: {{ $gwAddr }}
-      ports:
-        https: 443
-{{- end }}
 
 {{- end }}

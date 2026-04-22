@@ -46,30 +46,6 @@ spec:
     protocol: TCP
     name: http
   type: ClusterIP
-{{- if .Values.gatewayAddress }}
----
-apiVersion: networking.istio.io/v1beta1
-kind: ServiceEntry
-metadata:
-  name: demo-http-mesh
-  namespace: {{ .Release.Namespace }}
-spec:
-  hosts:
-  - "http.{{ .Values.domain }}"
-  ports:
-  - number: 80
-    name: http
-    protocol: HTTP
-  - number: 443
-    name: https
-    protocol: HTTPS
-  resolution: STATIC
-  location: MESH_INTERNAL
-  endpoints:
-  - address: {{ .Values.gatewayAddress }}
-    ports:
-      https: 443
-{{- end }}
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService

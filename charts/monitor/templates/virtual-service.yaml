@@ -15,30 +15,6 @@ spec:
             host: "prometheus-operator-grafana"
             port:
               number: 80
-{{- if .Values.global.gatewayAddress }}
----
-apiVersion: networking.istio.io/v1
-kind: ServiceEntry
-metadata:
-  name: "grafana-mesh"
-  namespace: "{{ .Release.Namespace }}"
-spec:
-  hosts:
-    - "grafana.{{ .Values.global.domain }}"
-  ports:
-    - number: 80
-      name: http
-      protocol: HTTP
-    - number: 443
-      name: https
-      protocol: HTTPS
-  resolution: STATIC
-  location: MESH_INTERNAL
-  endpoints:
-    - address: {{ .Values.global.gatewayAddress }}
-      ports:
-        https: 443
-{{- end }}
 ---
 apiVersion: networking.istio.io/v1
 kind: VirtualService
@@ -57,27 +33,3 @@ spec:
             host: "falco-falcosidekick-ui.falco.svc.cluster.local"
             port:
               number: 2802
-{{- if .Values.global.gatewayAddress }}
----
-apiVersion: networking.istio.io/v1
-kind: ServiceEntry
-metadata:
-  name: "falco-mesh"
-  namespace: "{{ .Release.Namespace }}"
-spec:
-  hosts:
-    - "falco.{{ .Values.global.domain }}"
-  ports:
-    - number: 80
-      name: http
-      protocol: HTTP
-    - number: 443
-      name: https
-      protocol: HTTPS
-  resolution: STATIC
-  location: MESH_INTERNAL
-  endpoints:
-    - address: {{ .Values.global.gatewayAddress }}
-      ports:
-        https: 443
-{{- end }}
