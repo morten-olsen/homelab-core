@@ -203,9 +203,6 @@ spec:
           - key: "shared/private"
             operator: AnyIn
             value: "{{`{{request.object.spec.gateways}}`}}"
-          - key: "{{`{{request.object.spec.hosts[?@ != 'mesh'] | [0] | ends_with(@, '`}}.{{ .Values.global.domain }}{{`')}}`}}"
-            operator: Equals
-            value: true
       context:
         - name: externalHost
           variable:
