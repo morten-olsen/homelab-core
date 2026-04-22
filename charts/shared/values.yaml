@@ -102,6 +102,14 @@ resources:
       enabled: true
       secretName: wildcard-tls
 
+  # -- Mesh Policy ----------------------------------------------------------
+
+  meshPolicy:
+    enabled: false
+    consumerNamespaces:
+      - prod
+      - prod-containarr
+
   # -- Backups --------------------------------------------------------------
 
   backups:
