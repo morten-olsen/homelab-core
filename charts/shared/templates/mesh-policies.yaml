@@ -1,20 +1,6 @@
 {{- if .Values.resources.meshPolicy.enabled }}
 # ============================================================================
-# Default deny — mesh-wide
-# All meshed pods reject traffic unless an AuthorizationPolicy allows it.
-# ============================================================================
----
-apiVersion: security.istio.io/v1
-kind: AuthorizationPolicy
-metadata:
-  name: default-deny
-  namespace: istio-system
-spec: {}
-
-# ============================================================================
-# Gateway ingress — allow the Istio gateway to reach all meshed services.
-# Traffic through VirtualService routes (e.g., app.example.com) works.
-# Direct service-to-service calls are blocked unless explicitly opened.
+# Gateway ingress — allow the Istio gateway to reach all meshed services
 # ============================================================================
 ---
 apiVersion: security.istio.io/v1
@@ -30,7 +16,7 @@ spec:
               - istio-ingress
 
 # ============================================================================
-# Monitoring — Prometheus scrapes all namespaces, components talk internally
+# Monitoring — scraping + internal
 # ============================================================================
 ---
 apiVersion: security.istio.io/v1
@@ -62,10 +48,8 @@ spec:
               - monitoring
 
 # ============================================================================
-# Shared namespace — internal communication + services open to all namespaces
+# Shared namespace — internal + open shared services
 # ============================================================================
-
-# Intra-shared: authentik-server ↔ authentik-worker ↔ redis, pihole ↔ pihole-dns
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
@@ -79,7 +63,7 @@ spec:
             namespaces:
               - {{ .Release.Namespace }}
 
-# PostgreSQL: any meshed namespace can connect (apps use direct service calls)
+# PostgreSQL: any namespace, port 5432 only
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
@@ -95,7 +79,7 @@ spec:
         - operation:
             ports: ["5432"]
 
-# Authentik: any meshed namespace can call (OIDC token exchange, auth checks)
+# Authentik: any namespace (OIDC provider)
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
@@ -109,7 +93,7 @@ spec:
   rules:
     - {}
 
-# Pi-hole: any meshed namespace can resolve DNS
+# Pi-hole: allow ALL traffic including non-mesh (serves physical network DNS)
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
@@ -123,7 +107,7 @@ spec:
   rules:
     - {}
 
-# Pi-hole DNS sidecar: any meshed namespace (dns-operator calls this)
+# Pi-hole DNS sidecar: any namespace
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
@@ -138,25 +122,9 @@ spec:
     - {}
 
 # ============================================================================
-# ArgoCD — internal components need to communicate
+# System namespaces — internal communication
 # ============================================================================
----
-apiVersion: security.istio.io/v1
-kind: AuthorizationPolicy
-metadata:
-  name: allow-argocd-internal
-  namespace: argocd
-spec:
-  rules:
-    - from:
-        - source:
-            namespaces:
-              - argocd
-
-# ============================================================================
-# System namespaces — operators that manage cross-namespace resources
-# ============================================================================
-{{- range list "cert-manager" "external-secrets" "sealed-secrets" "kyverno" "falco" }}
+{{- range list "argocd" "cert-manager" "external-secrets" "sealed-secrets" "kyverno" "falco" "demo" }}
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
