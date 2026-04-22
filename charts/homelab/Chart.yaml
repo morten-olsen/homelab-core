@@ -1,7 +1,7 @@
 apiVersion: v2
 name: homelab
 description: Turnkey Kubernetes platform — GitOps, service mesh, monitoring, and more
-version: 0.1.7
+version: 0.1.8
 keywords:
   - homelab
   - kubernetes
