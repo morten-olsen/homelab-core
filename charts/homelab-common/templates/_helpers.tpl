@@ -574,6 +574,7 @@ spec:
 {{- define "common._serviceEntry" -}}
 {{- if .Values.virtualService }}
 {{- if and .Values.virtualService.enabled .Values.subdomain (hasKey .Values.globals "domain") (ne .Values.globals.domain "") }}
+{{- $gwSvc := lookup "v1" "Service" "istio-ingress" "gateway" }}
 ---
 apiVersion: networking.istio.io/v1
 kind: ServiceEntry
@@ -592,12 +593,22 @@ spec:
     - number: 443
       name: https
       protocol: HTTPS
+  {{- if $gwSvc }}
+  resolution: STATIC
+  {{- else }}
   resolution: DNS
+  {{- end }}
   location: MESH_INTERNAL
   endpoints:
+    {{- if $gwSvc }}
+    - address: {{ $gwSvc.spec.clusterIP }}
+      ports:
+        https: 443
+    {{- else }}
     - address: gateway.istio-ingress.svc.cluster.local
       ports:
         https: 443
+    {{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
