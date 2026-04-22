@@ -32,6 +32,8 @@ kind: ClusterPolicy
 metadata:
   name: mesh-namespace-isolation
 spec:
+  admission: true
+  background: true
   rules:
     - name: generate-ns-isolation
       match:
