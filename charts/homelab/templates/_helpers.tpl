@@ -88,6 +88,8 @@ resources:
     enabled: {{ .Values.features.mariadb }}
   authentik:
     enabled: {{ .Values.features.auth }}
+  meshPolicy:
+    enabled: {{ .Values.features.meshPolicy }}
   backups:
     enabled: {{ .Values.features.backup }}
     nfs:
