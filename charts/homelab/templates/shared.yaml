@@ -36,6 +36,14 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: shared
+  ignoreDifferences:
+    - group: kyverno.io
+      kind: ClusterPolicy
+      jqPathExpressions:
+        - .spec.emitWarning
+        - .spec.rules[]?.skipBackgroundRequests
+        - .spec.validationFailureAction
+        - .status
   syncPolicy:
     {{- include "homelab.syncPolicy" . | nindent 4 }}
     managedNamespaceMetadata:
