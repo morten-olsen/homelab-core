@@ -137,4 +137,38 @@ spec:
   rules:
     - {}
 
+# ============================================================================
+# ArgoCD — internal components need to communicate
+# ============================================================================
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-argocd-internal
+  namespace: argocd
+spec:
+  rules:
+    - from:
+        - source:
+            namespaces:
+              - argocd
+
+# ============================================================================
+# System namespaces — operators that manage cross-namespace resources
+# ============================================================================
+{{- range list "cert-manager" "external-secrets" "sealed-secrets" "kyverno" "falco" }}
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-internal
+  namespace: {{ . }}
+spec:
+  rules:
+    - from:
+        - source:
+            namespaces:
+              - {{ . }}
+{{- end }}
+
 {{- end }}
