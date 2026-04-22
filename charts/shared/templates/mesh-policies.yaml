@@ -118,6 +118,14 @@ spec:
     - name: subdomain
       expression: >-
         string(variables.externalHost).split('.')[0]
+    - name: ownerRef
+      expression: >-
+        dyn([dyn({
+          "apiVersion": dyn("networking.istio.io/v1"),
+          "kind": dyn("VirtualService"),
+          "name": dyn(string(variables.vsName)),
+          "uid": dyn(string(object.metadata.uid))
+        })])
   generate:
     - expression: >-
         generator.Apply(variables.vsNamespace, [
@@ -126,7 +134,8 @@ spec:
             "apiVersion": dyn("networking.istio.io/v1"),
             "metadata": dyn({
               "name": dyn(string(variables.vsName) + "-mesh"),
-              "namespace": dyn(string(variables.vsNamespace))
+              "namespace": dyn(string(variables.vsNamespace)),
+              "ownerReferences": variables.ownerRef
             }),
             "spec": dyn({
               "hosts": dyn([string(variables.externalHost)]),
@@ -146,7 +155,8 @@ spec:
             "apiVersion": dyn("dns.homelab.mortenolsen.pro/v1alpha1"),
             "metadata": dyn({
               "name": dyn(string(variables.vsName) + "-dns"),
-              "namespace": dyn(string(variables.vsNamespace))
+              "namespace": dyn(string(variables.vsNamespace)),
+              "ownerReferences": variables.ownerRef
             }),
             "spec": dyn({
               "type": dyn("A"),
