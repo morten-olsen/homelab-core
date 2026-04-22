@@ -1,142 +1,59 @@
 {{- if .Values.resources.meshPolicy.enabled }}
 # ============================================================================
-# Gateway ingress — allow the Istio gateway to reach all meshed services
+# Kyverno ClusterPolicy: auto-generate namespace isolation
+#
+# For any namespace with istio-injection=enabled that does NOT have
+# homelab.mortenolsen.pro/mesh-isolation=skip, generate an Istio
+# AuthorizationPolicy that blocks cross-namespace traffic except
+# from the ingress gateway and monitoring (prometheus scraping).
+#
+# Effect: apps are reachable via their gateway URL (VirtualService)
+# but not via direct service calls from other namespaces.
 # ============================================================================
 ---
-apiVersion: security.istio.io/v1
-kind: AuthorizationPolicy
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
 metadata:
-  name: allow-gateway-ingress
-  namespace: istio-system
+  name: mesh-namespace-isolation
 spec:
   rules:
-    - from:
-        - source:
-            namespaces:
-              - istio-ingress
+    - name: generate-ns-isolation
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+              selector:
+                matchLabels:
+                  istio-injection: enabled
+      exclude:
+        any:
+          - resources:
+              selector:
+                matchLabels:
+                  homelab.mortenolsen.pro/mesh-isolation: skip
+      generate:
+        synchronize: true
+        apiVersion: security.istio.io/v1
+        kind: AuthorizationPolicy
+        name: ns-isolation
+        namespace: "{{`{{request.object.metadata.name}}`}}"
+        data:
+          spec:
+            action: DENY
+            rules:
+              - from:
+                  - source:
+                      notNamespaces:
+                        - "{{`{{request.object.metadata.name}}`}}"
+                        - monitoring
+                      notPrincipals:
+                        - cluster.local/ns/istio-ingress/sa/gateway
 
 # ============================================================================
-# Monitoring — scraping + internal
+# Label core-managed namespaces to skip mesh isolation.
+# These namespaces have their own access patterns (shared services,
+# monitoring scraping, demo apps) that don't fit the isolation model.
 # ============================================================================
----
-apiVersion: security.istio.io/v1
-kind: AuthorizationPolicy
-metadata:
-  name: allow-prometheus-scrape
-  namespace: istio-system
-spec:
-  rules:
-    - from:
-        - source:
-            namespaces:
-              - monitoring
-      to:
-        - operation:
-            methods: ["GET"]
-
----
-apiVersion: security.istio.io/v1
-kind: AuthorizationPolicy
-metadata:
-  name: allow-monitoring-internal
-  namespace: monitoring
-spec:
-  rules:
-    - from:
-        - source:
-            namespaces:
-              - monitoring
-
-# ============================================================================
-# Shared namespace — internal + open shared services
-# ============================================================================
----
-apiVersion: security.istio.io/v1
-kind: AuthorizationPolicy
-metadata:
-  name: allow-shared-internal
-  namespace: {{ .Release.Namespace }}
-spec:
-  rules:
-    - from:
-        - source:
-            namespaces:
-              - {{ .Release.Namespace }}
-
-# PostgreSQL: any namespace, port 5432 only
----
-apiVersion: security.istio.io/v1
-kind: AuthorizationPolicy
-metadata:
-  name: allow-postgres
-  namespace: {{ .Release.Namespace }}
-spec:
-  selector:
-    matchLabels:
-      cnpg.io/cluster: postgres-cluster
-  rules:
-    - to:
-        - operation:
-            ports: ["5432"]
-
-# Authentik: any namespace (OIDC provider)
----
-apiVersion: security.istio.io/v1
-kind: AuthorizationPolicy
-metadata:
-  name: allow-authentik
-  namespace: {{ .Release.Namespace }}
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: authentik
-  rules:
-    - {}
-
-# Pi-hole: allow ALL traffic including non-mesh (serves physical network DNS)
----
-apiVersion: security.istio.io/v1
-kind: AuthorizationPolicy
-metadata:
-  name: allow-pihole
-  namespace: {{ .Release.Namespace }}
-spec:
-  selector:
-    matchLabels:
-      app: pihole
-  rules:
-    - {}
-
-# Pi-hole DNS sidecar: any namespace
----
-apiVersion: security.istio.io/v1
-kind: AuthorizationPolicy
-metadata:
-  name: allow-pihole-dns
-  namespace: {{ .Release.Namespace }}
-spec:
-  selector:
-    matchLabels:
-      app: pihole-dns
-  rules:
-    - {}
-
-# ============================================================================
-# System namespaces — internal communication
-# ============================================================================
-{{- range list "argocd" "cert-manager" "external-secrets" "sealed-secrets" "kyverno" "falco" "demo" }}
----
-apiVersion: security.istio.io/v1
-kind: AuthorizationPolicy
-metadata:
-  name: allow-internal
-  namespace: {{ . }}
-spec:
-  rules:
-    - from:
-        - source:
-            namespaces:
-              - {{ . }}
-{{- end }}
 
 {{- end }}

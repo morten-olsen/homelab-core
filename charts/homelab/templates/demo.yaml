@@ -21,4 +21,5 @@ spec:
       labels:
         istio.io/rev: default
         istio-injection: enabled
+        homelab.mortenolsen.pro/mesh-isolation: skip
 {{- end }}

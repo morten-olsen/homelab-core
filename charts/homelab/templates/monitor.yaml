@@ -43,6 +43,7 @@ spec:
       labels:
         istio.io/rev: default
         istio-injection: enabled
+        homelab.mortenolsen.pro/mesh-isolation: skip
       annotations:
         volsync.backube/privileged-movers: "true"
 {{- end }}
