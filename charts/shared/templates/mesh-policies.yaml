@@ -1,5 +1,21 @@
 {{- if .Values.resources.meshPolicy.enabled }}
 # ============================================================================
+# Kyverno RBAC: grant permissions to manage Istio AuthorizationPolicies.
+# Uses Kyverno's label-based aggregation — no manual ClusterRoleBindings.
+# ============================================================================
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno:istio-authz:edit
+  labels:
+    rbac.kyverno.io/aggregate-to-admission-controller: "true"
+    rbac.kyverno.io/aggregate-to-background-controller: "true"
+rules:
+  - apiGroups: ["security.istio.io"]
+    resources: ["authorizationpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# ============================================================================
 # Kyverno ClusterPolicy: auto-generate namespace isolation
 #
 # For any namespace with istio-injection=enabled that does NOT have
