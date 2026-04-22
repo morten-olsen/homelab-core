@@ -221,9 +221,7 @@ operators:
     chart: kyverno
     values:
       admissionController:
-        container:
-          args:
-            crdWatcher: true
+        crdWatcher: true
     syncPolicy:
       automated:
         prune: true
