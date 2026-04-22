@@ -95,12 +95,8 @@ rules:
 #
 # For any VirtualService that references the private gateway
 # (shared/private), generate a ServiceEntry with STATIC resolution
-# pointing to the gateway ClusterIP. This prevents DNS hairpinning
-# for mesh-internal traffic to public hostnames without generating
-# DNS queries from Envoy sidecars.
-#
-# The generated ServiceEntry has an ownerReference to the VirtualService,
-# so Kubernetes GC deletes it when the VirtualService is removed.
+# pointing to the gateway ClusterIP. Uses synchronize: true so
+# Kyverno manages the full lifecycle (create, update, delete).
 # ============================================================================
 ---
 apiVersion: kyverno.io/v1
@@ -127,18 +123,12 @@ spec:
           variable:
             jmesPath: "request.object.spec.hosts[?@ != 'mesh'] | [0]"
       generate:
-        synchronize: false
+        synchronize: true
         apiVersion: networking.istio.io/v1
         kind: ServiceEntry
         name: "{{`{{request.object.metadata.name}}`}}-mesh"
         namespace: "{{`{{request.namespace}}`}}"
         data:
-          metadata:
-            ownerReferences:
-              - apiVersion: networking.istio.io/v1
-                kind: VirtualService
-                name: "{{`{{request.object.metadata.name}}`}}"
-                uid: "{{`{{request.object.metadata.uid}}`}}"
           spec:
             hosts:
               - "{{`{{externalHost}}`}}"
@@ -180,8 +170,8 @@ rules:
 # generate a DNSRecord pointing to the cluster IP. The subdomain
 # is extracted from the host by stripping the domain suffix.
 #
-# The generated DNSRecord has an ownerReference to the VirtualService,
-# so Kubernetes GC deletes it when the VirtualService is removed.
+# Uses synchronize: true so Kyverno manages the full lifecycle
+# (create, update, delete when the VirtualService is removed).
 # ============================================================================
 ---
 apiVersion: kyverno.io/v1
@@ -204,29 +194,21 @@ spec:
             operator: AnyIn
             value: "{{`{{request.object.spec.gateways}}`}}"
       context:
-        - name: externalHost
-          variable:
-            jmesPath: "request.object.spec.hosts[?@ != 'mesh'] | [0]"
         - name: subdomain
           variable:
-            jmesPath: "request.object.spec.hosts[?@ != 'mesh'] | [0] | split('.', @) | [0]"
+            jmesPath: "request.object.spec.hosts[?@ != 'mesh'] | [0]"
+            default: ""
       generate:
-        synchronize: false
+        synchronize: true
         apiVersion: dns.homelab.mortenolsen.pro/v1alpha1
         kind: DNSRecord
         name: "{{`{{request.object.metadata.name}}`}}-dns"
         namespace: "{{`{{request.namespace}}`}}"
         data:
-          metadata:
-            ownerReferences:
-              - apiVersion: networking.istio.io/v1
-                kind: VirtualService
-                name: "{{`{{request.object.metadata.name}}`}}"
-                uid: "{{`{{request.object.metadata.uid}}`}}"
           spec:
             type: A
             domain: {{ .Values.global.domain }}
-            subdomain: "{{`{{subdomain}}`}}"
+            subdomain: "{{`{{ regex_replace_all('\\..*$', '{{subdomain}}', '') }}`}}"
             dnsClassRef:
               name: private-dns
             values:
