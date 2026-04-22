@@ -16,7 +16,7 @@ rules:
     resources: ["authorizationpolicies"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["networking.istio.io"]
-    resources: ["serviceentries"]
+    resources: ["virtualservices", "serviceentries"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["dns.homelab.mortenolsen.pro"]
     resources: ["dnsrecords"]
