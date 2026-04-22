@@ -62,7 +62,7 @@ features:
   storage: true
 
   # Mesh-wide authorization policies — default deny + shared service allow rules
-  meshPolicy: true
+  meshPolicy: false
 
   # Demo applications
   demo: true
