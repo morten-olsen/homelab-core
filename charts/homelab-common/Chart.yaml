@@ -2,7 +2,7 @@ apiVersion: v2
 name: homelab-common
 description: Shared Helm library chart for deploying applications on the homelab platform
 type: library
-version: 0.1.5
+version: 0.1.6
 keywords:
   - homelab
   - kubernetes
