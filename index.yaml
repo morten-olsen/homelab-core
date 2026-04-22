@@ -203,6 +203,26 @@ entries:
     version: 0.1.1
   homelab-common:
   - apiVersion: v2
+    created: "2026-04-22T17:12:22.329952737Z"
+    description: Shared Helm library chart for deploying applications on the homelab
+      platform
+    digest: f74b18c25335d845e36f55923fe0ad5288c203673623e3cb03be55afcde41f80
+    home: https://github.com/morten-olsen/homelab-core
+    keywords:
+    - homelab
+    - kubernetes
+    - library
+    - common
+    maintainers:
+    - name: Morten Olsen
+    name: homelab-common
+    sources:
+    - https://github.com/morten-olsen/homelab-core
+    type: library
+    urls:
+    - https://github.com/morten-olsen/homelab-core/releases/download/homelab-common-0.1.7/homelab-common-0.1.7.tgz
+    version: 0.1.7
+  - apiVersion: v2
     created: "2026-04-22T16:44:02.02366662Z"
     description: Shared Helm library chart for deploying applications on the homelab
       platform
@@ -342,6 +362,14 @@ entries:
   homelab-demo:
   - apiVersion: v2
     appVersion: "1.0"
+    created: "2026-04-22T17:12:22.549353856Z"
+    digest: a2393fb256669b21d666583352ca65b25b80d51b991d88aaa96a7dbe38c65f66
+    name: homelab-demo
+    urls:
+    - https://github.com/morten-olsen/homelab-core/releases/download/homelab-demo-0.1.3/homelab-demo-0.1.3.tgz
+    version: 0.1.3
+  - apiVersion: v2
+    appVersion: "1.0"
     created: "2026-04-22T16:44:02.178690569Z"
     digest: 391e64a52fc20f3f497336b24f9d0d1d25f10e84714b6caaa775d75cb621c2dc
     name: homelab-demo
@@ -357,6 +385,24 @@ entries:
     - https://github.com/morten-olsen/homelab-core/releases/download/homelab-demo-0.1.1/homelab-demo-0.1.1.tgz
     version: 0.1.1
   homelab-monitor:
+  - apiVersion: v2
+    appVersion: "1.0"
+    created: "2026-04-22T17:12:22.737773691Z"
+    description: Monitoring stack for homelab Kubernetes cluster
+    digest: bf443fe550fb674f880cac90da43c716c42b0df000720220b40e2f015dcf5aec
+    home: https://github.com/morten-olsen/homelab-core
+    keywords:
+    - homelab
+    - kubernetes
+    - monitoring
+    - prometheus
+    - grafana
+    name: homelab-monitor
+    sources:
+    - https://github.com/morten-olsen/homelab-core
+    urls:
+    - https://github.com/morten-olsen/homelab-core/releases/download/homelab-monitor-0.2.5/homelab-monitor-0.2.5.tgz
+    version: 0.2.5
   - apiVersion: v2
     appVersion: "1.0"
     created: "2026-04-22T16:44:02.318673543Z"
@@ -412,6 +458,24 @@ entries:
     - https://github.com/morten-olsen/homelab-core/releases/download/homelab-monitor-0.2.1/homelab-monitor-0.2.1.tgz
     version: 0.2.1
   homelab-shared:
+  - apiVersion: v2
+    appVersion: "1.0"
+    created: "2026-04-22T17:12:22.921595436Z"
+    description: Shared resources for homelab Kubernetes cluster
+    digest: c3caded5a69b9846b6f19bba92c7150bdffd10cec24ab14a7dfce8e945c8d19e
+    home: https://github.com/morten-olsen/homelab-core
+    keywords:
+    - homelab
+    - kubernetes
+    - shared
+    - gateway
+    - istio
+    name: homelab-shared
+    sources:
+    - https://github.com/morten-olsen/homelab-core
+    urls:
+    - https://github.com/morten-olsen/homelab-core/releases/download/homelab-shared-0.1.10/homelab-shared-0.1.10.tgz
+    version: 0.1.10
   - apiVersion: v2
     appVersion: "1.0"
     created: "2026-04-22T16:44:02.485673841Z"
@@ -574,4 +638,4 @@ entries:
     urls:
     - https://github.com/morten-olsen/homelab-core/releases/download/homelab-shared-0.1.1/homelab-shared-0.1.1.tgz
     version: 0.1.1
-generated: "2026-04-22T16:44:02.485762676Z"
+generated: "2026-04-22T17:12:22.921667464Z"
