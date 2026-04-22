@@ -118,51 +118,40 @@ spec:
     - name: subdomain
       expression: >-
         string(variables.externalHost).split('.')[0]
-    - name: downstream
+    - name: serviceEntry
       expression: >-
-        [
-          {
-            "kind": dyn("ServiceEntry"),
-            "apiVersion": dyn("networking.istio.io/v1"),
-            "metadata": dyn({
-              "name": string(variables.vsName) + "-mesh",
-              "namespace": string(variables.vsNamespace)
-            }),
-            "spec": dyn({
-              "hosts": dyn([string(variables.externalHost)]),
-              "ports": dyn([
-                dyn({"number": 80, "name": "http", "protocol": "HTTP"}),
-                dyn({"number": 443, "name": "https", "protocol": "HTTPS"})
-              ]),
-              "resolution": "STATIC",
-              "location": "MESH_INTERNAL",
-              "endpoints": dyn([
-                dyn({
-                  "address": "{{ .Values.global.gatewayAddress }}",
-                  "ports": dyn({"https": 443})
-                })
-              ])
-            })
-          },
-          {
-            "kind": dyn("DNSRecord"),
-            "apiVersion": dyn("dns.homelab.mortenolsen.pro/v1alpha1"),
-            "metadata": dyn({
-              "name": string(variables.vsName) + "-dns",
-              "namespace": string(variables.vsNamespace)
-            }),
-            "spec": dyn({
-              "type": "A",
-              "domain": "{{ .Values.global.domain }}",
-              "subdomain": string(variables.subdomain),
-              "dnsClassRef": dyn({"name": "private-dns"}),
-              "values": dyn(["{{ .Values.global.ip }}"])
-            })
+        dyn({
+          "kind": "ServiceEntry",
+          "apiVersion": "networking.istio.io/v1",
+          "metadata": {"name": string(variables.vsName) + "-mesh", "namespace": string(variables.vsNamespace)},
+          "spec": {
+            "hosts": [string(variables.externalHost)],
+            "ports": [
+              {"number": dyn(80), "name": dyn("http"), "protocol": dyn("HTTP")},
+              {"number": dyn(443), "name": dyn("https"), "protocol": dyn("HTTPS")}
+            ],
+            "resolution": "STATIC",
+            "location": "MESH_INTERNAL",
+            "endpoints": [{"address": dyn("{{ .Values.global.gatewayAddress }}"), "ports": dyn({"https": dyn(443)})}]
           }
-        ]
+        })
+    - name: dnsRecord
+      expression: >-
+        dyn({
+          "kind": "DNSRecord",
+          "apiVersion": "dns.homelab.mortenolsen.pro/v1alpha1",
+          "metadata": {"name": string(variables.vsName) + "-dns", "namespace": string(variables.vsNamespace)},
+          "spec": {
+            "type": "A",
+            "domain": "{{ .Values.global.domain }}",
+            "subdomain": string(variables.subdomain),
+            "dnsClassRef": {"name": "private-dns"},
+            "values": ["{{ .Values.global.ip }}"]
+          }
+        })
   generate:
     - expression: >-
-        generator.Apply(variables.vsNamespace, variables.downstream)
+        generator.Apply(variables.vsNamespace, [variables.serviceEntry, variables.dnsRecord])
 {{- end }}
 
 {{- end }}
