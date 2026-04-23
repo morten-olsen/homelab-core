@@ -475,6 +475,24 @@ entries:
   homelab-monitor:
   - apiVersion: v2
     appVersion: "1.0"
+    created: "2026-04-23T16:12:20.266171189Z"
+    description: Monitoring stack for homelab Kubernetes cluster
+    digest: 7e24b20bdec254cbbfd3f520c2acedb1039278d8ab4bb7638a390249f9ad87ca
+    home: https://github.com/morten-olsen/homelab-core
+    keywords:
+    - homelab
+    - kubernetes
+    - monitoring
+    - prometheus
+    - grafana
+    name: homelab-monitor
+    sources:
+    - https://github.com/morten-olsen/homelab-core
+    urls:
+    - https://github.com/morten-olsen/homelab-core/releases/download/homelab-monitor-0.2.6/homelab-monitor-0.2.6.tgz
+    version: 0.2.6
+  - apiVersion: v2
+    appVersion: "1.0"
     created: "2026-04-22T17:12:22.737773691Z"
     description: Monitoring stack for homelab Kubernetes cluster
     digest: bf443fe550fb674f880cac90da43c716c42b0df000720220b40e2f015dcf5aec
@@ -870,4 +888,4 @@ entries:
     urls:
     - https://github.com/morten-olsen/homelab-core/releases/download/homelab-shared-0.1.1/homelab-shared-0.1.1.tgz
     version: 0.1.1
-generated: "2026-04-23T03:23:33.179607846Z"
+generated: "2026-04-23T16:12:20.266316641Z"
