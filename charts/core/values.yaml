@@ -163,7 +163,7 @@ operators:
 
   dns-operator:
     enabled: true
-    version: 0.0.5
+    version: 0.0.8
     namespace: falco
     repoURL: https://morten-olsen.github.io/homelab-dns-operator
     chart: dns-operator
