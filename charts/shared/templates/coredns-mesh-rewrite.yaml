@@ -1,0 +1,26 @@
+{{- /*
+  CoreDNS rewrite for hostNetwork pods.
+
+  Pods with hostNetwork: true don't get an Istio sidecar, so they miss the
+  mesh DNS interception (ISTIO_META_DNS_CAPTURE / DNS_AUTO_ALLOCATE).
+  Without this, *.olsen.cloud resolves to the public IP and hairpins
+  through the internet — getting blocked by mesh restrictions.
+
+  This adds a CoreDNS override that rewrites *.domain queries to the
+  Istio gateway's cluster-local DNS name, so hostNetwork pods route
+  through the gateway just like sidecar-injected pods do.
+
+  K3s loads *.override files from the coredns-custom ConfigMap automatically.
+*/ -}}
+{{- if .Values.resources.meshPolicy.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  autopath.override: |
+    autopath @kubernetes
+  mesh-rewrite.override: |
+    rewrite name regex (.+)\.{{ .Values.global.domain | replace "." "\\." }} gateway.istio-ingress.svc.cluster.local answer auto
+{{- end }}
