@@ -1,0 +1,9 @@
+when:
+  - event: [cron, manual]
+
+steps:
+  renovate:
+    image: code.olsen.cloud/ci/renovate:latest
+    settings:
+      token:
+        from_secret: renovate_forgejo_token
