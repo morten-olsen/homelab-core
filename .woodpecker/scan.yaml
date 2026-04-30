@@ -1,0 +1,11 @@
+when:
+  - event: [push, manual]
+    branch: main
+
+steps:
+  scan:
+    image: code.olsen.cloud/ci/trivy:latest
+    settings:
+      target: fs
+      # Advisory while we triage. Flip to 1 once the report is clean.
+      exit_code: 0
