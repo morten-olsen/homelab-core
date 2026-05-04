@@ -41,6 +41,49 @@ spec:
       labels:
         app: temporal
     spec:
+      initContainers:
+        # Grant the history user ownership of the visibility database and
+        # install btree_gin. Temporal's auto-setup uses POSTGRES_USER for
+        # both schemas (no VISIBILITY_POSTGRES_USER override exists), so
+        # the history user must own the visibility DB. Statements are
+        # idempotent — safe to re-run on every pod start.
+        - name: postgres-bootstrap
+          image: postgres:18-alpine
+          env:
+            - name: PGHOST
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-history-connection
+                  key: host
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-cluster-controller
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-cluster-controller
+                  key: password
+            - name: HISTORY_USER
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-history-connection
+                  key: user
+            - name: VISIBILITY_DB
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-visibility-connection
+                  key: database
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              psql -v ON_ERROR_STOP=1 -d "$VISIBILITY_DB" \
+                -c "ALTER DATABASE \"$VISIBILITY_DB\" OWNER TO \"$HISTORY_USER\";" \
+                -c "GRANT ALL PRIVILEGES ON SCHEMA public TO \"$HISTORY_USER\";" \
+                -c "CREATE EXTENSION IF NOT EXISTS btree_gin;"
       containers:
         - name: temporal
           image: "{{ $temporal.image.repository }}:{{ $temporal.image.tag }}"
