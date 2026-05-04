@@ -75,6 +75,56 @@ Both are generated from the `_gateway.yaml` partial template. Each Gateway CR co
 
 Both accept all hosts (`"*"`). Access restriction (public vs. private) is handled at the load balancer / firewall level, not by Istio itself.
 
+## Web Application Firewall (WAF)
+
+Internet-facing traffic is inspected by [Coraza Proxy WASM](https://github.com/corazawaf/coraza-proxy-wasm) — an OWASP project that runs the [Core Rule Set v4](https://coreruleset.org/) inside Envoy as a WebAssembly filter. The filter is loaded into the gateway pod via an Istio `WasmPlugin` (`charts/shared/templates/waf.yaml`) and is **scoped to the public listener ports only** (18080 / 18443) — LAN traffic on 80 / 443 is not inspected.
+
+The WASM image (`ghcr.io/corazawaf/coraza-proxy-wasm`) bundles the CRS rules at build time, so the `Include @owasp_crs/*.conf` directives resolve to virtual paths inside the module — there is no separate ConfigMap to manage.
+
+### Why scoped to public only
+
+The single gateway Deployment serves both classes of traffic on different ports. Coraza adds non-zero CPU per request and (per the maintainers' own release notes) may drift in memory under sustained load. LAN-side apps are already on a trusted network and don't need the same scrutiny, so we attach the filter only to the public listener chains via `WasmPlugin.match.ports`.
+
+### Configuration knobs (`charts/shared/values.yaml`)
+
+```yaml
+resources:
+  waf:
+    enabled: false              # master switch
+    failStrategy: FAIL_OPEN     # FAIL_OPEN: pass traffic if WASM crashes
+    image:
+      repository: ghcr.io/corazawaf/coraza-proxy-wasm
+      tag: "0.6.0"
+    directives:
+      - "Include @demo-conf"          # body-access + audit defaults
+      - "Include @crs-setup-conf"     # CRS tunables
+      - "Include @owasp_crs/*.conf"   # all CRS rules
+      - "SecRuleEngine DetectionOnly" # log only, do not block
+    # perAuthorityDirectives:
+    #   noisy.app.example.com: relaxed
+```
+
+### Rollout playbook
+
+1. **Detection-only.** Deploy with `SecRuleEngine DetectionOnly` and `failStrategy: FAIL_OPEN`. CRS evaluates every public request and emits matches to Envoy access logs and `wasmcustom.coraza_*` stats, but nothing is blocked.
+2. **Watch.** For ~2 weeks: `kubectl logs -n istio-ingress -l istio=gateway -c istio-proxy | grep coraza`, the gateway pod's RSS in Grafana, and p50/p99 latency on public services.
+3. **Tune.** Apps that legitimately trip rules (Authentik OIDC, file uploads, ActivityPub federation) get a relaxed rule set under `perAuthorityDirectives` keyed by `:authority` (i.e. the request `Host` header).
+4. **Promote.** Flip `SecRuleEngine` to `On` to start blocking. Once stable for another week, flip `failStrategy` to `FAIL_CLOSE` so a WASM crash drops traffic instead of silently disabling the WAF.
+
+### Per-host rule customization
+
+Coraza supports multiple named rule sets in one `WasmPlugin` and routes between them by HTTP `:authority`. Define an extra entry in `directives_map` (extending the chart template) and reference it from `perAuthorityDirectives`. This is the right place to drop a noisy rule for a single app without weakening the global posture.
+
+### Limits
+
+The WAF is HTTP/L7 only and only sees traffic that traverses the public gateway listener. It does **not** see:
+- Mesh-internal hairpin traffic (apps calling each other through the `mesh` gateway — see ServiceEntries below)
+- Non-HTTP protocols
+- Outbound traffic from pods (egress policy is a separate concern)
+- Any private-zone traffic
+
+UDM-Pro intrusion protection covers L3/L4 patterns at the network edge and is complementary, not redundant.
+
 ## VirtualService Routing
 
 Services are exposed by creating VirtualService resources that reference either the `public` or `private` gateway (or both).

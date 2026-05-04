@@ -36,6 +36,26 @@ resources:
       httpPort: 80
       httpsPort: 443
 
+  # -- Web Application Firewall --------------------------------------------
+  # Coraza Proxy WASM, attached to the public gateway listener only. Disabled
+  # by default; rollout is detection-only first, then SecRuleEngine On +
+  # FAIL_CLOSE. See docs/networking.md "Web Application Firewall (WAF)".
+
+  waf:
+    enabled: false
+    failStrategy: FAIL_OPEN
+    image:
+      repository: ghcr.io/corazawaf/coraza-proxy-wasm
+      tag: "0.6.0"
+      pullPolicy: IfNotPresent
+    directives:
+      - "Include @demo-conf"
+      - "Include @crs-setup-conf"
+      - "Include @owasp_crs/*.conf"
+      - "SecRuleEngine DetectionOnly"
+    # perAuthorityDirectives:
+    #   noisy.app.example.com: relaxed
+
   # -- TLS ------------------------------------------------------------------
 
   certIssuer:
