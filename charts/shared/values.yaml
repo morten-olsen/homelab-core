@@ -102,6 +102,31 @@ resources:
       enabled: true
       secretName: wildcard-tls
 
+  # -- Workflow orchestration -----------------------------------------------
+
+  temporal:
+    enabled: false
+    subdomain: temporal
+    image:
+      repository: temporalio/auto-setup
+      tag: 1.28.1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+    ui:
+      image:
+        repository: temporalio/ui
+        tag: 2.40.0
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          memory: 256Mi
+
   # -- Mesh Policy ----------------------------------------------------------
 
   meshPolicy:

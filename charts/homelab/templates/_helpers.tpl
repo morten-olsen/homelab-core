@@ -89,6 +89,8 @@ resources:
     enabled: {{ .Values.features.mariadb }}
   authentik:
     enabled: {{ .Values.features.auth }}
+  temporal:
+    enabled: {{ .Values.features.temporal }}
   meshPolicy:
     enabled: {{ .Values.features.meshPolicy }}
   backups:

@@ -1,0 +1,210 @@
+{{- if .Values.resources.temporal.enabled -}}
+{{- $temporal := .Values.resources.temporal -}}
+{{- $global := .Values.global -}}
+apiVersion: postgres.homelab.mortenolsen.pro/v1
+kind: PostgresDatabase
+metadata:
+  name: temporal-history
+  namespace: {{ .Release.Namespace }}
+spec:
+  clusterRef:
+    name: postgres
+    namespace: {{ .Release.Namespace }}
+
+---
+apiVersion: postgres.homelab.mortenolsen.pro/v1
+kind: PostgresDatabase
+metadata:
+  name: temporal-visibility
+  namespace: {{ .Release.Namespace }}
+spec:
+  clusterRef:
+    name: postgres
+    namespace: {{ .Release.Namespace }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temporal
+  namespace: {{ .Release.Namespace }}
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: temporal
+  template:
+    metadata:
+      labels:
+        app: temporal
+    spec:
+      containers:
+        - name: temporal
+          image: "{{ $temporal.image.repository }}:{{ $temporal.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: tcp-grpc
+              containerPort: 7233
+              protocol: TCP
+            - name: membership
+              containerPort: 6933
+              protocol: TCP
+          env:
+            - name: DB
+              value: postgres12
+            - name: DB_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-history-connection
+                  key: user
+            - name: POSTGRES_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-history-connection
+                  key: password
+            - name: POSTGRES_SEEDS
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-history-connection
+                  key: host
+            - name: DBNAME
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-history-connection
+                  key: database
+            # Auto-setup uses POSTGRES_USER for both history and visibility
+            # schema bootstrap (no VISIBILITY_POSTGRES_USER override exists
+            # upstream). Visibility DB ownership must be granted to the
+            # history user out-of-band — see chart README.
+            - name: VISIBILITY_DBNAME
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-visibility-connection
+                  key: database
+            - name: ENABLE_ES
+              value: "false"
+            - name: SKIP_DB_CREATE
+              value: "true"
+            - name: SKIP_DEFAULT_NAMESPACE_CREATION
+              value: "false"
+            - name: DEFAULT_NAMESPACE
+              value: default
+            - name: BIND_ON_IP
+              value: "0.0.0.0"
+            - name: TZ
+              value: {{ $global.timezone | quote }}
+          livenessProbe:
+            tcpSocket:
+              port: tcp-grpc
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 10
+          readinessProbe:
+            tcpSocket:
+              port: tcp-grpc
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 10
+          resources:
+            {{- toYaml $temporal.resources | nindent 12 }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: temporal
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: temporal
+  ports:
+    - name: tcp-grpc
+      port: 7233
+      protocol: TCP
+      targetPort: tcp-grpc
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temporal-ui
+  namespace: {{ .Release.Namespace }}
+spec:
+  strategy:
+    type: RollingUpdate
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: temporal-ui
+  template:
+    metadata:
+      labels:
+        app: temporal-ui
+    spec:
+      containers:
+        - name: temporal-ui
+          image: "{{ $temporal.ui.image.repository }}:{{ $temporal.ui.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: TEMPORAL_ADDRESS
+              value: "temporal:7233"
+            - name: TEMPORAL_UI_PORT
+              value: "8080"
+          livenessProbe:
+            tcpSocket:
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml $temporal.ui.resources | nindent 12 }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: temporal-ui
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app: temporal-ui
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: temporal-ui
+  namespace: {{ .Release.Namespace }}
+spec:
+  gateways:
+    - "{{ .Release.Namespace }}/private"
+    - mesh
+  hosts:
+    - "{{ $temporal.subdomain }}.{{ $global.domain }}"
+    - mesh
+  http:
+    - route:
+        - destination:
+            host: temporal-ui
+            port:
+              number: 80
+
+{{- end }}
