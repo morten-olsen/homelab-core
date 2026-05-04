@@ -42,7 +42,7 @@ resources:
   # FAIL_CLOSE. See docs/networking.md "Web Application Firewall (WAF)".
 
   waf:
-    enabled: true
+    enabled: false
     failStrategy: FAIL_OPEN
     image:
       repository: ghcr.io/corazawaf/coraza-proxy-wasm
