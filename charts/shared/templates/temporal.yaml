@@ -75,14 +75,24 @@ spec:
                 secretKeyRef:
                   name: temporal-visibility-connection
                   key: database
+            - name: VISIBILITY_USER
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-visibility-connection
+                  key: user
           command:
             - sh
             - -c
             - |
               set -e
+              # REASSIGN OWNED BY handles the case where the visibility user
+              # already owns tables (from a prior deploy that ran before this
+              # bootstrap existed) — needed so the history user can run
+              # schema migrations against them.
               psql -v ON_ERROR_STOP=1 -d "$VISIBILITY_DB" \
                 -c "ALTER DATABASE \"$VISIBILITY_DB\" OWNER TO \"$HISTORY_USER\";" \
                 -c "GRANT ALL PRIVILEGES ON SCHEMA public TO \"$HISTORY_USER\";" \
+                -c "REASSIGN OWNED BY \"$VISIBILITY_USER\" TO \"$HISTORY_USER\";" \
                 -c "CREATE EXTENSION IF NOT EXISTS btree_gin;"
       containers:
         - name: temporal
