@@ -77,16 +77,19 @@ spec:
 # Kyverno GeneratingPolicy: auto-generate mesh resources from VirtualServices
 #
 # For any VirtualService targeting the private gateway (shared/private),
-# generate:
-#   1. A STATIC ServiceEntry pointing to the gateway ClusterIP
-#   2. A DNSRecord (A record) pointing to the cluster IP
+# iterate over each non-mesh host and generate:
+#   1. A STATIC ServiceEntry pointing to the gateway ClusterIP — for ALL hosts
+#      (so wildcard + apex, or multiple discrete hosts, all get mesh routing).
+#   2. A DNSRecord (A record) pointing to the cluster IP — only for hosts
+#      strictly under the configured globals.domain. External-domain hosts
+#      get a ServiceEntry but no DNSRecord (their public DNS resolves
+#      correctly already and pi-hole shouldn't serve them).
+#
+# Resource naming: <vsName>-<sanitized-host>-mesh / -dns, where the host
+# has '.' replaced with '-' and '*' replaced with 'wildcard'.
 #
 # Uses synchronize so Kyverno manages the full lifecycle — generated
 # resources are created, updated, and deleted with the VirtualService.
-#
-# Uses the new policies.kyverno.io/v1 GeneratingPolicy CRD with CEL
-# expressions (replaces the deprecated ClusterPolicy generate rules
-# which don't register webhooks for CRD resources).
 # ============================================================================
 ---
 apiVersion: policies.kyverno.io/v1
@@ -112,12 +115,11 @@ spec:
       expression: 'object.metadata.name'
     - name: vsNamespace
       expression: 'object.metadata.namespace'
-    - name: externalHost
+    - name: hosts
       expression: >-
-        object.spec.hosts.filter(h, h != 'mesh')[0]
-    - name: subdomain
-      expression: >-
-        string(variables.externalHost).split('.')[0]
+        object.spec.hosts.filter(h, h != 'mesh')
+    - name: globalDomain
+      expression: '"{{ .Values.global.domain }}"'
     - name: ownerRef
       expression: >-
         dyn([dyn({
@@ -126,47 +128,50 @@ spec:
           "name": dyn(string(variables.vsName)),
           "uid": dyn(string(object.metadata.uid))
         })])
+    - name: serviceEntries
+      expression: >-
+        variables.hosts.map(h, dyn({
+          "kind": dyn("ServiceEntry"),
+          "apiVersion": dyn("networking.istio.io/v1"),
+          "metadata": dyn({
+            "name": dyn(string(variables.vsName) + "-" + h.replace(".", "-").replace("*", "wildcard") + "-mesh"),
+            "namespace": dyn(string(variables.vsNamespace)),
+            "ownerReferences": variables.ownerRef
+          }),
+          "spec": dyn({
+            "hosts": dyn([h]),
+            "ports": dyn([
+              dyn({"number": dyn(80), "name": dyn("http"), "protocol": dyn("HTTP")}),
+              dyn({"number": dyn(443), "name": dyn("https"), "protocol": dyn("HTTPS")})
+            ]),
+            "resolution": dyn("STATIC"),
+            "location": dyn("MESH_INTERNAL"),
+            "endpoints": dyn([
+              dyn({"address": dyn("{{ .Values.global.gatewayAddress }}"), "ports": dyn({"https": dyn(443)})})
+            ])
+          })
+        }))
+    - name: dnsRecords
+      expression: >-
+        variables.hosts.filter(h, h.endsWith("." + variables.globalDomain)).map(h, dyn({
+          "kind": dyn("DNSRecord"),
+          "apiVersion": dyn("dns.homelab.mortenolsen.pro/v1alpha1"),
+          "metadata": dyn({
+            "name": dyn(string(variables.vsName) + "-" + h.replace(".", "-").replace("*", "wildcard") + "-dns"),
+            "namespace": dyn(string(variables.vsNamespace)),
+            "ownerReferences": variables.ownerRef
+          }),
+          "spec": dyn({
+            "type": dyn("A"),
+            "domain": dyn(variables.globalDomain),
+            "subdomain": dyn(h.substring(0, h.size() - variables.globalDomain.size() - 1)),
+            "dnsClassRef": dyn({"name": dyn("private-dns")}),
+            "values": dyn(["{{ .Values.global.ip }}"])
+          })
+        }))
   generate:
     - expression: >-
-        generator.Apply(variables.vsNamespace, [
-          {
-            "kind": dyn("ServiceEntry"),
-            "apiVersion": dyn("networking.istio.io/v1"),
-            "metadata": dyn({
-              "name": dyn(string(variables.vsName) + "-mesh"),
-              "namespace": dyn(string(variables.vsNamespace)),
-              "ownerReferences": variables.ownerRef
-            }),
-            "spec": dyn({
-              "hosts": dyn([string(variables.externalHost)]),
-              "ports": dyn([
-                dyn({"number": dyn(80), "name": dyn("http"), "protocol": dyn("HTTP")}),
-                dyn({"number": dyn(443), "name": dyn("https"), "protocol": dyn("HTTPS")})
-              ]),
-              "resolution": dyn("STATIC"),
-              "location": dyn("MESH_INTERNAL"),
-              "endpoints": dyn([
-                dyn({"address": dyn("{{ .Values.global.gatewayAddress }}"), "ports": dyn({"https": dyn(443)})})
-              ])
-            })
-          },
-          {
-            "kind": dyn("DNSRecord"),
-            "apiVersion": dyn("dns.homelab.mortenolsen.pro/v1alpha1"),
-            "metadata": dyn({
-              "name": dyn(string(variables.vsName) + "-dns"),
-              "namespace": dyn(string(variables.vsNamespace)),
-              "ownerReferences": variables.ownerRef
-            }),
-            "spec": dyn({
-              "type": dyn("A"),
-              "domain": dyn("{{ .Values.global.domain }}"),
-              "subdomain": dyn(string(variables.subdomain)),
-              "dnsClassRef": dyn({"name": dyn("private-dns")}),
-              "values": dyn(["{{ .Values.global.ip }}"])
-            })
-          }
-        ])
+        generator.Apply(variables.vsNamespace, variables.serviceEntries + variables.dnsRecords)
 {{- end }}
 
 {{- end }}
