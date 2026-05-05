@@ -1,13 +1,17 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": [
+    "config:recommended"
+  ],
   "prHourlyLimit": 5,
   "prConcurrentLimit": 10,
   "customManagers": [
     {
       "customType": "regex",
       "description": "Helm charts from standard registries",
-      "fileMatch": ["charts/.+/values\\.yaml$"],
+      "managerFilePatterns": [
+        "/charts/.+/values\\.yaml$/"
+      ],
       "matchStrings": [
         "version: [\"']?(?<currentValue>[^\"'\\s]+)[\"']?\\n(?:\\s+\\S+:[^\\n]*\\n){0,3}\\s+repoURL: (?<registryUrl>https://[^\\n]+)\\n\\s+chart: (?<depName>[^\\n\\s]+)"
       ],
@@ -16,7 +20,9 @@
     {
       "customType": "regex",
       "description": "Helm charts from OCI registries",
-      "fileMatch": ["charts/.+/values\\.yaml$"],
+      "managerFilePatterns": [
+        "/charts/.+/values\\.yaml$/"
+      ],
       "matchStrings": [
         "version: [\"']?(?<currentValue>[^\"'\\s]+)[\"']?\\n(?:\\s+\\S+:[^\\n]*\\n){0,3}\\s+repoURL: oci://(?<depName>[^\\n]+)\\n\\s+path: \\."
       ],
@@ -25,7 +31,9 @@
     {
       "customType": "regex",
       "description": "Istio gateway chart version in shared values",
-      "fileMatch": ["charts/shared/values\\.yaml$"],
+      "managerFilePatterns": [
+        "/charts/shared/values\\.yaml$/"
+      ],
       "matchStrings": [
         "gateway:\\n\\s+enabled: (?:true|false)\\n\\s+version: (?<currentValue>[^\\n\\s]+)"
       ],
@@ -36,7 +44,9 @@
     {
       "customType": "regex",
       "description": "Container images with repository and tag fields",
-      "fileMatch": ["charts/.+/values\\.yaml$"],
+      "managerFilePatterns": [
+        "/charts/.+/values\\.yaml$/"
+      ],
       "matchStrings": [
         "repository: (?<depName>[^\\n\\s]+)\\n\\s+tag: (?<currentValue>[^\\n\\s]+)"
       ],
@@ -45,7 +55,9 @@
     {
       "customType": "regex",
       "description": "Inline container images (image: registry/path:tag)",
-      "fileMatch": ["charts/.+/values\\.yaml$"],
+      "managerFilePatterns": [
+        "/charts/.+/values\\.yaml$/"
+      ],
       "matchStrings": [
         "image: (?<depName>(?:ghcr\\.io|docker\\.io|quay\\.io|registry\\.k8s\\.io)[^:\\s]+):(?<currentValue>[^\\s]+)"
       ],
@@ -56,39 +68,63 @@
     {
       "description": "Istio components must always stay in sync regardless of update type",
       "groupName": "istio",
-      "matchPackageNames": ["base", "istiod", "gateway"],
-      "matchDatasources": ["helm"]
+      "matchPackageNames": [
+        "base",
+        "istiod",
+        "gateway"
+      ],
+      "matchDatasources": [
+        "helm"
+      ]
     },
     {
       "description": "MariaDB operator + CRDs must always stay in sync",
       "groupName": "mariadb-operator",
-      "matchPackageNames": ["mariadb-operator", "mariadb-operator-crds"],
-      "matchDatasources": ["helm"]
+      "matchPackageNames": [
+        "mariadb-operator",
+        "mariadb-operator-crds"
+      ],
+      "matchDatasources": [
+        "helm"
+      ]
     },
     {
       "description": "Automerge all patch updates",
-      "matchUpdateTypes": ["patch"],
+      "matchUpdateTypes": [
+        "patch"
+      ],
       "automerge": true
     },
     {
       "description": "Group all minor updates into a single PR",
       "groupName": "all-minor",
-      "matchUpdateTypes": ["minor"]
+      "matchUpdateTypes": [
+        "minor"
+      ]
     },
     {
       "description": "Group all major updates into a single PR",
       "groupName": "all-major",
-      "matchUpdateTypes": ["major"]
+      "matchUpdateTypes": [
+        "major"
+      ]
     },
     {
       "description": "Weekly update schedule to avoid noise",
-      "matchDatasources": ["helm", "docker"],
-      "schedule": ["before 9am on monday"]
+      "matchDatasources": [
+        "helm",
+        "docker"
+      ],
+      "schedule": [
+        "before 9am on monday"
+      ]
     },
     {
       "description": "Replace latest tags with pinned versions",
       "matchCurrentValue": "latest",
-      "matchDatasources": ["docker"],
+      "matchDatasources": [
+        "docker"
+      ],
       "pinDigests": true
     }
   ]
