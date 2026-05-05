@@ -104,11 +104,7 @@ resources:
   postgresCluster:
     enabled: true
     instances: 1
-    # PostGIS-enabled CNPG image (strict superset of postgresql:18-standard
-    # — same base + PostGIS layered on). Required for Dawarich; the standard
-    # variant only bundles pgaudit/pg_failover_slots and pgvector, no
-    # postgis. Tracking docs: https://github.com/cloudnative-pg/postgis-containers
-    image: ghcr.io/cloudnative-pg/postgis:18-3.5-trixie
+    image: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie
     storage:
       size: 10Gi
       storageClassName: local-path
