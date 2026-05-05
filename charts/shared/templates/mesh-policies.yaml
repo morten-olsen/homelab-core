@@ -153,7 +153,7 @@ spec:
         }))
     - name: dnsRecords
       expression: >-
-        variables.hosts.filter(h, h.endsWith("." + variables.globalDomain)).map(h, dyn({
+        variables.hosts.filter(h, h.endsWith("." + variables.globalDomain) && !h.contains("*")).map(h, dyn({
           "kind": dyn("DNSRecord"),
           "apiVersion": dyn("dns.homelab.mortenolsen.pro/v1alpha1"),
           "metadata": dyn({
