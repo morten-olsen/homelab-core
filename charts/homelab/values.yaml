@@ -14,6 +14,8 @@ platform:
     - "*.coder.olsen.cloud"
     - "*.olsen.pro"
     - "olsen.pro"
+    - "mortenolsen.pro"
+    - "*.mortenolsen.pro"
   email: ""
   timezone: Europe/Amsterdam
   acme: prod
