@@ -126,6 +126,7 @@ operators:
                 comps: [=, =]
                 values:
                   - [ghcr.io/cloudnative-pg/postgresql, postgres]
+                  - [ghcr.io/cloudnative-pg/postgis, postgres]
           - rule: Drop and execute new binary in container
             override:
               exceptions: append
