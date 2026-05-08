@@ -156,6 +156,13 @@ resources:
 
   backups:
     enabled: true
+    # When true, a Kyverno ClusterPolicy auto-creates the per-source NFS
+    # subdirectory whenever a ReplicationSource is created. Avoids stuck
+    # mover pods on first sync after adding a new backup.
+    autoMkdir:
+      enabled: true
+      # Image used by the generated mkdir Job. Needs `mkdir` only.
+      image: busybox:1.37.0
     nfs:
       server: ""
       path: ""

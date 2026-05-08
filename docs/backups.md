@@ -62,6 +62,27 @@ Each mover pod mounts its app-specific subdirectory at `/mnt/backup`, so the
 `RESTIC_REPOSITORY: /mnt/backup` path in the shared secret works for all apps
 without per-app secrets.
 
+### Auto-creation of NFS subdirectories
+
+The NFS server only exports `/mnt/HDD/k8s/backups`; per-app subdirectories
+under it must exist before a mover pod can mount one. A Kyverno
+`ClusterPolicy` (`backup-nfs-mkdir`, defined in
+`charts/shared/templates/backup-mkdir-policy.yaml`) handles this
+automatically:
+
+- On `ReplicationSource` admission, Kyverno generates a one-shot Job in
+  the same namespace that mounts the parent NFS path and runs
+  `mkdir -p /mnt/backup/<release>-<pvc>`.
+- The Job is one-shot (`synchronize: false`) and self-cleans via
+  `ttlSecondsAfterFinished: 600`.
+- The kubelet's volume-mount retry then succeeds on its next attempt
+  (~1m), so the mover pod recovers without manual intervention.
+
+If the policy is disabled (`resources.backups.autoMkdir.enabled: false`),
+operators must `mkdir` each subdirectory on the NAS by hand before the
+first mover run, otherwise the mover pod gets stuck in `Init:0/2` with
+`mount.nfs: ... failed, reason given by server: No such file or directory`.
+
 ## Restic password
 
 A single restic encryption password is generated automatically in the `shared`

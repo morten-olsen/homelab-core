@@ -1,0 +1,110 @@
+{{- if and .Values.resources.backups.enabled .Values.resources.backups.autoMkdir.enabled }}
+{{- $backup := .Values.resources.backups }}
+# ============================================================================
+# Kyverno RBAC: grant the background controller permission to manage Jobs.
+# Required so the generate rule below can create the mkdir Job in any
+# namespace where a ReplicationSource is created.
+# ============================================================================
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno:backup-mkdir:edit
+  labels:
+    rbac.kyverno.io/aggregate-to-admission-controller: "true"
+    rbac.kyverno.io/aggregate-to-background-controller: "true"
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["volsync.backube"]
+    resources: ["replicationsources"]
+    verbs: ["get", "list", "watch"]
+
+# ============================================================================
+# Kyverno ClusterPolicy: auto-create NFS subdirectories for VolSync sources.
+#
+# When a ReplicationSource is created whose mover mounts an NFS subpath
+# under {{ $backup.nfs.path }} on {{ $backup.nfs.server }}, generate a
+# one-shot Job in the same namespace that mounts the *parent* NFS path
+# (which exists) and runs `mkdir -p` on the per-source subdirectory.
+#
+# The kubelet retries failing volume mounts with backoff, so once the
+# subdir exists the stuck mover pod will mount and run on its own — no
+# manual intervention needed.
+#
+# `synchronize: false` keeps this a one-shot generate at admission time —
+# the Job runs once, completes, and is cleaned up by ttlSecondsAfterFinished.
+# Existing RSes created before this policy was installed need a manual
+# backfill (a sweep Job that mkdir's all current subdirs).
+# ============================================================================
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: backup-nfs-mkdir
+spec:
+  admission: true
+  background: true
+  rules:
+    - name: generate-mkdir-job
+      match:
+        any:
+          - resources:
+              kinds:
+                - ReplicationSource
+      preconditions:
+        all:
+          # Only act on RSes whose NFS path is under our configured root.
+          - key: "{{`{{ request.object.spec.restic.moverVolumes[0].volumeSource.nfs.path || '' }}`}}"
+            operator: Equals
+            value: "{{ $backup.nfs.path }}/?*"
+      context:
+        - name: subdir
+          variable:
+            jmesPath: "split(request.object.spec.restic.moverVolumes[0].volumeSource.nfs.path, '/') | [-1]"
+      generate:
+        synchronize: false
+        apiVersion: batch/v1
+        kind: Job
+        name: "backup-mkdir-{{`{{request.object.metadata.name}}`}}"
+        namespace: "{{`{{request.object.metadata.namespace}}`}}"
+        data:
+          metadata:
+            labels:
+              app.kubernetes.io/managed-by: kyverno
+              homelab.mortenolsen.pro/purpose: backup-nfs-mkdir
+          spec:
+            backoffLimit: 6
+            ttlSecondsAfterFinished: 600
+            template:
+              metadata:
+                labels:
+                  app.kubernetes.io/managed-by: kyverno
+                  homelab.mortenolsen.pro/purpose: backup-nfs-mkdir
+                  # Don't inject Istio sidecar — short-lived Job, no mesh traffic
+                  sidecar.istio.io/inject: "false"
+              spec:
+                restartPolicy: OnFailure
+                securityContext:
+                  runAsUser: 0
+                  runAsGroup: 0
+                containers:
+                  - name: mkdir
+                    image: {{ $backup.autoMkdir.image | quote }}
+                    command:
+                      - sh
+                      - -c
+                      - |
+                        set -eu
+                        mkdir -p "/mnt/backup/{{`{{subdir}}`}}"
+                        echo "ensured /mnt/backup/{{`{{subdir}}`}}"
+                    volumeMounts:
+                      - name: backup-root
+                        mountPath: /mnt/backup
+                volumes:
+                  - name: backup-root
+                    nfs:
+                      server: {{ $backup.nfs.server | quote }}
+                      path: {{ $backup.nfs.path | quote }}
+{{- end }}
