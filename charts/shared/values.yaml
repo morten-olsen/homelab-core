@@ -117,7 +117,7 @@ resources:
   authentik:
     enabled: true
     subdomain: auth
-    image: ghcr.io/goauthentik/server:2026.2.1
+    image: ghcr.io/goauthentik/server:2026.2.3
     tls:
       enabled: true
       secretName: wildcard-tls
