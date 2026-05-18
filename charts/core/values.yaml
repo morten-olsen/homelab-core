@@ -70,7 +70,7 @@ operators:
 
   falco:
     enabled: true
-    version: 8.0.1
+    version: 8.0.5
     namespace: falco
     repoURL: https://falcosecurity.github.io/charts
     chart: falco
