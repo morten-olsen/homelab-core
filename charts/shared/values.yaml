@@ -23,7 +23,7 @@ resources:
 
   gateway:
     enabled: true
-    version: 1.29.1
+    version: 1.30.0
     namespace: istio-ingress
 
   gateways:
@@ -129,7 +129,7 @@ resources:
     subdomain: temporal
     image:
       repository: temporalio/auto-setup
-      tag: 1.28.1
+      tag: 1.29.6
     resources:
       requests:
         cpu: 100m
@@ -139,7 +139,7 @@ resources:
     ui:
       image:
         repository: temporalio/ui
-        tag: 2.40.0
+        tag: 2.49.1
       resources:
         requests:
           cpu: 50m
