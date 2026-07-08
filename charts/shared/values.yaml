@@ -23,7 +23,7 @@ resources:
 
   gateway:
     enabled: true
-    version: 1.29.1
+    version: 1.30.2
     namespace: istio-ingress
 
   gateways:
@@ -117,7 +117,7 @@ resources:
   authentik:
     enabled: true
     subdomain: auth
-    image: ghcr.io/goauthentik/server:2026.2.3
+    image: ghcr.io/goauthentik/server:2026.5.4
     tls:
       enabled: true
       secretName: wildcard-tls
@@ -129,7 +129,7 @@ resources:
     subdomain: temporal
     image:
       repository: temporalio/auto-setup
-      tag: 1.28.1
+      tag: 1.29.7
     resources:
       requests:
         cpu: 100m
@@ -139,7 +139,7 @@ resources:
     ui:
       image:
         repository: temporalio/ui
-        tag: 2.40.0
+        tag: 2.51.1
       resources:
         requests:
           cpu: 50m
@@ -162,7 +162,7 @@ resources:
     autoMkdir:
       enabled: true
       # Image used by the generated mkdir Job. Needs `mkdir` only.
-      image: busybox:1.37.0
+      image: busybox:1.38.0
     nfs:
       server: ""
       path: ""
