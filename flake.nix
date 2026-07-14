@@ -15,7 +15,7 @@
         
         # Wrapper script for kubeseal with controller flags
         kubeseal-wrapped = pkgs.writeShellScriptBin "kubeseal" ''
-          exec ${pkgs.kubeseal}/bin/kubeseal --controller-namespace core --controller-name sealed-secrets-operator "$@"
+          exec ${pkgs.kubeseal}/bin/kubeseal --controller-namespace sealed-secrets --controller-name sealed-secrets "$@"
         '';
       in
       {
@@ -63,7 +63,7 @@
             echo ""
             echo "Note: Ensure Docker is running for Kind clusters"
             echo ""
-            echo "kubeseal is configured with: --controller-namespace core --controller-name sealed-secrets-operator"
+            echo "kubeseal is configured with: --controller-namespace sealed-secrets --controller-name sealed-secrets"
           '';
         };
 

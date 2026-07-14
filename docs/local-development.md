@@ -25,7 +25,7 @@ Run `direnv allow` on first use.
 
 ### kubeseal wrapper
 
-The flake provides a wrapper script around `kubeseal` that automatically passes `--controller-namespace core --controller-name sealed-secrets-operator`. You can invoke `kubeseal` as normal and these flags are prepended for you.
+The flake provides a wrapper script around `kubeseal` that automatically passes `--controller-namespace sealed-secrets --controller-name sealed-secrets`. You can invoke `kubeseal` as normal and these flags are prepended for you.
 
 ---
 

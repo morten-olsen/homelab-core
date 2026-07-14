@@ -294,7 +294,7 @@ operators:
     enabled: true
     version: 2.18.4
     namespace: sealed-secrets
-    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    repoURL: https://bitnami.github.io/sealed-secrets
     chart: sealed-secrets
 
   trivy:

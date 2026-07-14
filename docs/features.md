@@ -108,7 +108,7 @@ monitoring:
 | Component | Type | Chart / Resource |
 |-----------|------|-----------------|
 | External Secrets Operator | Operator | `external-secrets` from charts.external-secrets.io |
-| Sealed Secrets | Operator | `sealed-secrets` from bitnami-labs.github.io |
+| Sealed Secrets | Operator | `sealed-secrets` from bitnami.github.io |
 
 Two complementary approaches: External Secrets for generating secrets (passwords, API keys) and syncing from external stores; Sealed Secrets for encrypting secrets that can be safely committed to git.
 

@@ -68,7 +68,7 @@ username) alongside the generated password.
 ## 2. Sealed Secrets
 
 The Sealed Secrets operator is deployed in the `core` chart (namespace:
-`sealed-secrets`, chart version 2.17.9). It decrypts `SealedSecret` resources
+`sealed-secrets`, chart version 2.18.4). It decrypts `SealedSecret` resources
 in-cluster, allowing encrypted secrets to be committed to Git safely.
 
 ### kubeseal wrapper
@@ -79,8 +79,8 @@ automatically targets the correct controller:
 ```nix
 kubeseal-wrapped = pkgs.writeShellScriptBin "kubeseal" ''
   exec ${pkgs.kubeseal}/bin/kubeseal \
-    --controller-namespace core \
-    --controller-name sealed-secrets-operator "$@"
+    --controller-namespace sealed-secrets \
+    --controller-name sealed-secrets "$@"
 '';
 ```
 
