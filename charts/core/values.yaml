@@ -285,7 +285,7 @@ operators:
 
   reloader:
     enabled: true
-    version: 2.2.15
+    version: 2.2.16
     namespace: reloader
     repoURL: https://stakater.github.io/stakater-charts
     chart: reloader
