@@ -12,7 +12,7 @@ global:
 operators:
   argocd:
     enabled: true
-    version: 9.5.14
+    version: 10.6.0
     namespace: argocd
     repoURL: https://argoproj.github.io/argo-helm
     chart: argo-cd
@@ -70,7 +70,7 @@ operators:
 
   falco:
     enabled: true
-    version: 8.0.5
+    version: 9.1.0
     namespace: falco
     repoURL: https://falcosecurity.github.io/charts
     chart: falco
