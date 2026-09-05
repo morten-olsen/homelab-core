@@ -104,7 +104,14 @@ resources:
   postgresCluster:
     enabled: true
     instances: 1
+    # Pooled clients continuously reconnect during smart shutdown, so waiting
+    # the default three minutes cannot drain this shared application cluster.
+    smartShutdownTimeout: 30
     image: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie
+    postgresql:
+      parameters:
+        # Shared application pools already consume roughly 90 connections.
+        max_connections: "200"
     storage:
       size: 10Gi
       storageClassName: local-path

@@ -10,7 +10,11 @@ metadata:
 
 spec:
   instances: {{ $pg.instances }}
+  smartShutdownTimeout: {{ $pg.smartShutdownTimeout }}
   imageName: {{ $pg.image }}
+  postgresql:
+    parameters:
+{{ toYaml $pg.postgresql.parameters | indent 6 }}
   storage:
     size: {{ $pg.storage.size }}
     storageClass: {{ $pg.storage.storageClassName }}
