@@ -146,11 +146,10 @@ operators:
                   - [gitea, /app/gitea/gitea]
       falcosidekick:
         enabled: true
-        webui:
-          enabled: true
         # Redis had grown past 2 GiB with no bound. Keep recent UI events but
         # prevent the observability stack from becoming a memory-pressure source.
         webui:
+          enabled: true
           redis:
             customConfig:
               - maxmemory 2gb
