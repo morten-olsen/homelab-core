@@ -384,7 +384,10 @@ operators:
 
   trivy:
     enabled: true
-    version: 0.32.1
+    # Chart 0.36.0 includes Trivy 0.74.0. Trivy 0.72+ randomizes process
+    # temporary directories, preventing multi-container scan Jobs from deleting
+    # each other's shared /tmp/trivy-* working directory.
+    version: 0.36.0
     namespace: trivy
     repoURL: https://aquasecurity.github.io/helm-charts
     chart: trivy-operator
