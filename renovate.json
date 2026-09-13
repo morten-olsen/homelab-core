@@ -89,25 +89,12 @@
       ]
     },
     {
-      "description": "Automerge all patch updates",
-      "matchUpdateTypes": [
-        "patch"
+      "description": "Require review for every update; GitHub is a read-only mirror",
+      "matchDatasources": [
+        "helm",
+        "docker"
       ],
-      "automerge": true
-    },
-    {
-      "description": "Group all minor updates into a single PR",
-      "groupName": "all-minor",
-      "matchUpdateTypes": [
-        "minor"
-      ]
-    },
-    {
-      "description": "Group all major updates into a single PR",
-      "groupName": "all-major",
-      "matchUpdateTypes": [
-        "major"
-      ]
+      "automerge": false
     },
     {
       "description": "Weekly update schedule to avoid noise",
