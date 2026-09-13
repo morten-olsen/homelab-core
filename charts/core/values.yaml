@@ -136,6 +136,14 @@ operators:
                 values:
                   - [docker.io/pihole/pihole]
                   - [codeberg.org/forgejo/forgejo]
+              # Forgejo executes its image binary through /usr/local/bin for SSH
+              # and Git hooks. Container metadata enrichment is not reliable on
+              # this k3s/containerd setup, so retain a narrow executable fallback.
+              - name: forgejo_image_binary
+                fields: [proc.name, proc.exepath]
+                comps: [=, =]
+                values:
+                  - [gitea, /app/gitea/gitea]
       falcosidekick:
         enabled: true
         webui:
