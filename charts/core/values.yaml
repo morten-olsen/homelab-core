@@ -89,6 +89,12 @@ operators:
         kernel_event_counters_enabled: true
       webserver:
         enabled: true
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          memory: 2Gi
       falco:
         json_output: true
         json_include_output_property: true
