@@ -72,7 +72,7 @@ All scripts live in `scripts/` and expect the `CLUSTER_NAME` environment variabl
 | Script | Description |
 |--------|-------------|
 | `setup-kind.sh` | Creates the Kind cluster with port mappings and starts cloud-provider-kind. |
-| `install-argocd.sh` | Adds the Argo Helm repo, installs ArgoCD (chart version 9.2.1) as a NodePort service on ports 30080/30443, and writes the admin password to `argo-password.txt`. |
+| `install-argocd.sh` | Adds the Argo Helm repo, installs ArgoCD (chart version 10.9.0) as a NodePort service on ports 30080/30443, and writes the admin password to `argo-password.txt`. |
 | `deploy-homelab.sh` | Renders and applies the `charts/homelab` Helm chart to deploy the full homelab stack. |
 | `deploy-core.sh` | Installs the `charts/core` Helm chart into a `core` namespace, then waits for the `cert-manager` and `istiod` ArgoCD Applications to become synced and healthy. Auto-detects the repo URL from the git remote. |
 | `deploy-shared.sh` | Installs the `charts/shared` Helm chart into a `shared` namespace with the staging ACME server configured. |

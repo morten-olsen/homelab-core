@@ -12,25 +12,72 @@ global:
 operators:
   argocd:
     enabled: true
-    version: 9.5.14
+    version: 10.9.0
     namespace: argocd
     repoURL: https://argoproj.github.io/argo-helm
     chart: argo-cd
     values:
+      crds:
+        install: true
+        keep: true
+      global:
+        # Chart 10 enables these by default. Keep the security boundary explicit.
+        networkPolicy:
+          create: true
       configs:
         params:
           server.insecure: true
+      controller:
+        resources:
+          requests:
+            memory: 1Gi
+          limits:
+            memory: 6Gi
       server:
+        resources:
+          requests:
+            memory: 128Mi
+          limits:
+            memory: 512Mi
         service:
           type: NodePort
           nodePortHttp: 30080
           nodePortHttps: 30443
       repoServer:
+        resources:
+          requests:
+            memory: 256Mi
+          limits:
+            memory: 1Gi
         livenessProbe:
           timeoutSeconds: 10
           initialDelaySeconds: 30
         readinessProbe:
           timeoutSeconds: 10
+      applicationSet:
+        resources:
+          requests:
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+      notifications:
+        resources:
+          requests:
+            memory: 128Mi
+          limits:
+            memory: 512Mi
+      dex:
+        resources:
+          requests:
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+      redis:
+        resources:
+          requests:
+            memory: 64Mi
+          limits:
+            memory: 256Mi
 
   authentik:
     enabled: true
