@@ -316,7 +316,8 @@ operators:
         # Keep failures visible past the 15m KubeJobFailed alert window, but do
         # not retain stale scan Jobs indefinitely.
         scanJobTTL: 30m
-        # Istio injects `image: auto` as a placeholder; it is not a real image.
+      # Istio injects `image: auto` as a placeholder; it is not a real image.
+      trivyOperator:
         excludeImages: "auto"
       trivy:
         resources:
