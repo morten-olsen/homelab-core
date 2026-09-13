@@ -401,9 +401,10 @@ operators:
         # image containers, and avoids downloading the DB in every scan pod.
         builtInTrivyServer: true
         scanJobsConcurrentLimit: 3
-        # Keep failures visible past the 15m KubeJobFailed alert window, but do
-        # not retain stale scan Jobs indefinitely.
-        scanJobTTL: 30m
+        # The operator counts terminal Jobs against its concurrency limit. Keep
+        # them briefly for inspection without reducing throughput to three scans
+        # per 30 minutes; monitor has a dedicated fast Trivy failure alert.
+        scanJobTTL: 2m
       # Istio injects `image: auto` as a placeholder; it is not a real image.
       trivyOperator:
         excludeImages: "auto"

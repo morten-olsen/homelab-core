@@ -128,6 +128,18 @@ spec:
             description: '{{ "{{" }} $labels.obj_namespace {{ "}}" }}/{{ "{{" }} $labels.obj_name {{ "}}" }} has not completed a successful sync in over 6 hours.'
 
 
+    - name: homelab.trivy
+      rules:
+        - alert: TrivyScanJobFailed
+          expr: |
+            kube_job_status_failed{namespace="trivy", job_name=~"scan-.*"} > 0
+          for: 30s
+          labels:
+            severity: warning
+          annotations:
+            summary: "Trivy image scan failed"
+            description: 'Trivy scan Job {{ "{{" }} $labels.job_name {{ "}}" }} failed. Run `task security:trivy:jobs` before its two-minute TTL expires.'
+
     - name: homelab.falco
       rules:
         - alert: FalcoCriticalAlert
