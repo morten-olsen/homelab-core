@@ -248,6 +248,18 @@ operators:
     values:
       admissionController:
         crdWatcher: true
+      backgroundController:
+        resources:
+          limits:
+            memory: 256Mi
+      cleanupController:
+        resources:
+          limits:
+            memory: 256Mi
+      reportsController:
+        resources:
+          limits:
+            memory: 256Mi
     syncPolicy:
       automated:
         prune: true

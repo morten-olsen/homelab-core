@@ -25,6 +25,8 @@ spec:
     chart: gateway
     helm:
       values: |
+        resources:
+          {{- toYaml $gateway.resources | nindent 10 }}
         service:
           ports:
             - name: status-port

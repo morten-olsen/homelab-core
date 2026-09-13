@@ -55,7 +55,7 @@ monitoring:
               memory: 2Gi
             limits:
               cpu: 2000m
-              memory: 4Gi
+              memory: 6Gi
 
       # Grafana configuration
       grafana:
@@ -74,7 +74,7 @@ monitoring:
             memory: 128Mi
           limits:
             cpu: 500m
-            memory: 512Mi
+            memory: 1Gi
         service:
           type: ClusterIP
         podAnnotations:
