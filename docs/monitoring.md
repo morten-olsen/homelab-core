@@ -10,6 +10,7 @@ The monitoring stack runs in the `monitoring` namespace and is managed by the `c
 | **Alertmanager** | Alert routing and deduplication |
 | **Grafana** | Dashboards (private, at `grafana.olsen.cloud`) |
 | **Blackbox Exporter** | HTTP health probes for internal services |
+| **node-exporter hwmon** | Host CPU, NVMe, DIMM, board, and thermal-zone temperature metrics |
 | **ntfy-alertmanager** | Bridge: Alertmanager webhooks → ntfy notifications |
 | **ntfy** | Push notification delivery (app layer, `ntfy.olsen.cloud`) |
 
@@ -86,3 +87,15 @@ ntfy:
 To add a new HTTP probe target, add the internal service URL to the appropriate list in `charts/monitor/templates/blackbox-probes.yaml`.
 
 To change alert thresholds or add new rules, edit `charts/monitor/templates/prometheus-rules.yaml`.
+
+## Host thermal dashboard
+
+`charts/monitor/templates/grafana-dashboard-host-thermals.yaml` defines the
+**Homelab Host Thermals** dashboard from existing node-exporter metrics. It uses
+`node_hwmon_temp_celsius`, `node_hwmon_temp_crit_celsius`,
+`node_thermal_zone_temp`, and `node_boot_time_seconds` to trend CPU, NVMe, DIMM,
+board/WMI, and ACPI thermal-zone readings alongside reboot markers.
+
+The ACPI thermal zone includes the known bogus Gigabyte reading documented in the
+stability investigation; use the dashboard for trend/correlation, not as proof
+that the bogus ACPI critical threshold is real.

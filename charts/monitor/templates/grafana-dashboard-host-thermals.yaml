@@ -1,0 +1,171 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-host-thermals
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    grafana_dashboard: "1"
+data:
+  homelab-host-thermals.json: |
+    {
+      "title": "Homelab Host Thermals",
+      "uid": "homelab-host-thermals",
+      "description": "Host CPU, NVMe, DIMM, board, and thermal-zone temperatures from node-exporter hwmon metrics. Use with node boot-time changes to correlate thermal behavior with abrupt restarts.",
+      "tags": ["homelab", "node-exporter", "thermals"],
+      "schemaVersion": 38,
+      "refresh": "1m",
+      "graphTooltip": 1,
+      "time": { "from": "now-7d", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "datasource",
+            "type": "datasource",
+            "query": "prometheus",
+            "hide": 0,
+            "refresh": 1
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Node boot-time changes in range",
+          "description": "Counts node_boot_time_seconds changes in the visible time range. Each change normally indicates a host reboot.",
+          "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "color": { "mode": "thresholds" },
+              "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 3 } ] }
+            }
+          },
+          "targets": [
+            { "expr": "changes(node_boot_time_seconds[$__range])", "legendFormat": "reboots", "refId": "A", "instant": true, "datasource": { "type": "prometheus", "uid": "${datasource}" } }
+          ]
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "Current hottest sensors",
+          "gridPos": { "x": 6, "y": 0, "w": 18, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "celsius",
+              "color": { "mode": "thresholds" },
+              "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "orange", "value": 85 }, { "color": "red", "value": 95 } ] }
+            }
+          },
+          "targets": [
+            { "expr": "topk(8, node_hwmon_temp_celsius)", "legendFormat": "{{ "{{" }}chip{{ "}}" }} {{ "{{" }}sensor{{ "}}" }}", "refId": "A", "instant": true, "datasource": { "type": "prometheus", "uid": "${datasource}" } }
+          ]
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "NVMe temperatures",
+          "description": "All hwmon temperature sensors exposed for the NVMe device. Sensor labels are kernel hwmon labels; compare against smartctl output when identifying the physical sensor.",
+          "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "celsius",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10 },
+              "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "orange", "value": 85 }, { "color": "red", "value": 95 } ] }
+            }
+          },
+          "targets": [
+            { "expr": "node_hwmon_temp_celsius{chip=\"nvme_nvme0\"}", "legendFormat": "NVMe {{ "{{" }}sensor{{ "}}" }}", "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" } }
+          ]
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "CPU temperatures",
+          "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "celsius",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10 },
+              "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 75 }, { "color": "orange", "value": 90 }, { "color": "red", "value": 100 } ] }
+            }
+          },
+          "targets": [
+            { "expr": "node_hwmon_temp_celsius{chip=\"platform_coretemp_0\"}", "legendFormat": "coretemp {{ "{{" }}sensor{{ "}}" }}", "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" } },
+            { "expr": "node_thermal_zone_temp{type=\"x86_pkg_temp\"}", "legendFormat": "thermal zone package", "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" } }
+          ]
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "DIMM / SPD temperature",
+          "gridPos": { "x": 0, "y": 12, "w": 8, "h": 7 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "unit": "celsius", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10 } } },
+          "targets": [
+            { "expr": "node_hwmon_temp_celsius{chip=~\"i2c_.*\"}", "legendFormat": "{{ "{{" }}chip{{ "}}" }} {{ "{{" }}sensor{{ "}}" }}", "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" } }
+          ]
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "Motherboard / WMI temperatures",
+          "gridPos": { "x": 8, "y": 12, "w": 8, "h": 7 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "unit": "celsius", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10 } } },
+          "targets": [
+            { "expr": "node_hwmon_temp_celsius{chip=~\"wmi_.*\"}", "legendFormat": "WMI {{ "{{" }}sensor{{ "}}" }}", "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" } }
+          ]
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "ACPI / thermal zones",
+          "description": "Includes the known bogus ACPI zone plus x86 package thermal-zone metric. Do not treat the bogus ACPI threshold as a real shutdown limit.",
+          "gridPos": { "x": 16, "y": 12, "w": 8, "h": 7 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "unit": "celsius", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10 } } },
+          "targets": [
+            { "expr": "node_hwmon_temp_celsius{chip=~\"thermal_.*\"}", "legendFormat": "hwmon {{ "{{" }}chip{{ "}}" }} {{ "{{" }}sensor{{ "}}" }}", "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" } },
+            { "expr": "node_thermal_zone_temp", "legendFormat": "thermal zone {{ "{{" }}type{{ "}}" }}", "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" } }
+          ]
+        },
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "Hottest host sensors over time",
+          "gridPos": { "x": 0, "y": 19, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "celsius",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10 },
+              "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "orange", "value": 85 }, { "color": "red", "value": 95 } ] }
+            }
+          },
+          "targets": [
+            { "expr": "topk(10, node_hwmon_temp_celsius)", "legendFormat": "{{ "{{" }}chip{{ "}}" }} {{ "{{" }}sensor{{ "}}" }}", "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" } }
+          ]
+        },
+        {
+          "id": 9,
+          "type": "timeseries",
+          "title": "Uptime reset markers",
+          "description": "Uptime in hours resets to near zero after a host reboot. Use this with thermal panels to inspect the period before each reset.",
+          "gridPos": { "x": 12, "y": 19, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "unit": "h", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10 } } },
+          "targets": [
+            { "expr": "(time() - node_boot_time_seconds) / 3600", "legendFormat": "uptime hours", "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" } },
+            { "expr": "changes(node_boot_time_seconds[5m])", "legendFormat": "boot-time changed", "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" } }
+          ]
+        }
+      ]
+    }
