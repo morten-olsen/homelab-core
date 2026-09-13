@@ -69,8 +69,8 @@ features:
   # Mesh-wide authorization policies — default deny + shared service allow rules
   meshPolicy: true
 
-  # Workflow orchestration — Temporal server + UI
-  temporal: true
+  # Workflow orchestration — Temporal server + UI (currently unused)
+  temporal: false
 
 # -- Backup configuration (when features.backup is true) -------------------
 backup:
