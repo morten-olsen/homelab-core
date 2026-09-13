@@ -337,6 +337,23 @@ Dynamic values resolved at template time:
 
 Supported in: `env`, `command`, `args`, `initContainers`, volume references (`configMap`, `secret`), `serviceAccountName`.
 
+## Blackbox Probe
+
+A Service gets an HTTP blackbox Probe by default. The default module requires a
+2xx response from `/`. Override the health path or module when that is not the
+application's contract:
+
+```yaml
+probe:
+  path: /api/health
+  module: http_2xx       # optional; defaults to http_2xx
+```
+
+Modules are defined by the platform blackbox-exporter configuration. Select a
+non-default module deliberately; do not broaden the global `http_2xx` contract to
+hide one application's false positive. Set `probe.enabled: false` only when no
+meaningful service-level probe is possible.
+
 ## Entry Points
 
 All accept `(list <rootContext> <appValues>)`.

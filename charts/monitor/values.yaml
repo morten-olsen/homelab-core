@@ -205,6 +205,17 @@ blackboxExporter:
             method: GET
             follow_redirects: true
             preferred_ip_protocol: ip4
+        # Some content servers use 404 as a healthy empty state. Select this
+        # explicitly per Probe; 5xx and connection failures still fail.
+        http_2xx_or_404:
+          prober: http
+          timeout: 10s
+          http:
+            valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+            valid_status_codes: [200, 201, 202, 204, 404]
+            method: GET
+            follow_redirects: true
+            preferred_ip_protocol: ip4
     resources:
       requests:
         cpu: 50m
