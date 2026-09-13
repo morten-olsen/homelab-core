@@ -148,6 +148,19 @@ operators:
         enabled: true
         webui:
           enabled: true
+        # Redis had grown past 2 GiB with no bound. Keep recent UI events but
+        # prevent the observability stack from becoming a memory-pressure source.
+        webui:
+          redis:
+            customConfig:
+              - maxmemory 2gb
+              - maxmemory-policy allkeys-lru
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 3Gi
         config:
           alertmanager:
             hostport: http://prometheus-operator-kube-p-alertmanager.monitoring.svc.cluster.local:9093
