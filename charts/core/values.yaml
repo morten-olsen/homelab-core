@@ -159,7 +159,7 @@ operators:
                 cpu: 50m
                 memory: 256Mi
               limits:
-                memory: 3Gi
+                memory: 4Gi
         config:
           alertmanager:
             hostport: http://prometheus-operator-kube-p-alertmanager.monitoring.svc.cluster.local:9093
