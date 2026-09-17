@@ -175,7 +175,7 @@ resources:
     autoMkdir:
       enabled: true
       # Image used by the generated mkdir Job. Needs `mkdir` only.
-      image: busybox:1.37.0
+      image: busybox:1.38.0
     nfs:
       server: ""
       path: ""
