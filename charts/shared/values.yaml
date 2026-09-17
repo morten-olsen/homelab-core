@@ -152,7 +152,7 @@ resources:
     ui:
       image:
         repository: temporalio/ui
-        tag: 2.40.0
+        tag: 2.54.1
       resources:
         requests:
           cpu: 50m
