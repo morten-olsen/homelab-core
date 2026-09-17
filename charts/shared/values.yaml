@@ -142,7 +142,7 @@ resources:
     subdomain: temporal
     image:
       repository: temporalio/auto-setup
-      tag: 1.28.1
+      tag: 1.29.7
     resources:
       requests:
         cpu: 100m
