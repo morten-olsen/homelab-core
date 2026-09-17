@@ -88,7 +88,7 @@ operators:
 
   cert-manager:
     enabled: true
-    version: v1.20.0
+    version: v1.21.2
     namespace: cert-manager
     repoURL: oci://quay.io/jetstack/charts/cert-manager
     path: .
