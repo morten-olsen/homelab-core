@@ -222,14 +222,14 @@ operators:
 
   mariadb-crds:
     enabled: true
-    version: 26.6.0
+    version: 26.10.0
     namespace: mariadb
     repoURL: https://helm.mariadb.com/mariadb-operator
     chart: mariadb-operator-crds
 
   mariadb-operator:
     enabled: true
-    version: 26.6.0
+    version: 26.10.0
     namespace: mariadb
     repoURL: https://helm.mariadb.com/mariadb-operator
     chart: mariadb-operator
