@@ -599,6 +599,17 @@ spec:
     - {{ printf "https://%s%s" (include "common.domain" $) . | quote }}
     {{- end }}
   subjectMode: {{ .Values.oidc.subjectMode | default "user_username" }}
+  {{- with .Values.oidc.scopes }}
+  scopes:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.oidc.grantTypes }}
+  grantTypes:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.oidc.signingKeyName }}
+  signingKeyName: {{ . | quote }}
+  {{- end }}
 {{- end }}
 {{- end }}
 
