@@ -715,7 +715,7 @@ metadata:
 spec:
   interval: 60s
   scrapeTimeout: 10s
-  module: {{ default "http_2xx" .Values.probe.module }}
+  module: {{ dig "probe" "module" "http_2xx" .Values }}
   prober:
     url: blackbox-exporter.monitoring.svc.cluster.local:9115
     path: /probe
