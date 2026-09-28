@@ -18,7 +18,7 @@ ntfy:
 monitoring:
   prometheus-operator:
     enabled: true
-    version: 91.4.1
+    version: 91.8.0
     namespace: monitoring
     repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
