@@ -60,9 +60,34 @@ data:
     #!/bin/sh
     set -eu
 
+    PVC_ROOT="/var/lib/rancher/k3s/storage/pvc"
+
     if [ -L "$VOL_DIR" ]; then
       PRETTY_PATH=$(readlink "$VOL_DIR")
-      rm "$VOL_DIR"
+      RELATIVE_PATH=${PRETTY_PATH#"$PVC_ROOT"/}
+      NAMESPACE_PART=${RELATIVE_PATH%%/*}
+      NAME_PART=${RELATIVE_PATH#*/}
+
+      if [ "$RELATIVE_PATH" = "$PRETTY_PATH" ] ||
+         [ -z "$NAMESPACE_PART" ] ||
+         [ -z "$NAME_PART" ] ||
+         [ "$NAME_PART" != "${NAME_PART#*/}" ]; then
+        echo "Error: Refusing to remove unexpected local-path target: $PRETTY_PATH"
+        exit 1
+      fi
+
+      rm -rf -- "$PRETTY_PATH"
+      rm -- "$VOL_DIR"
+    elif [ -d "$VOL_DIR" ]; then
+      case "$VOL_DIR" in
+        /var/lib/rancher/k3s/storage/pvc-*)
+          rm -rf -- "$VOL_DIR"
+          ;;
+        *)
+          echo "Error: Refusing to remove unexpected local-path volume: $VOL_DIR"
+          exit 1
+          ;;
+      esac
     fi
   helperPod.yaml: |-
     apiVersion: v1
