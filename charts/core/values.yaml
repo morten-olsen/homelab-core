@@ -226,7 +226,11 @@ operators:
           alertmanager:
             hostport: http://prometheus-operator-kube-p-alertmanager.monitoring.svc.cluster.local:9093
             endpoint: /api/v2/alerts
-            minimumpriority: warning
+            # Sidekick turns every event into its own alert (event fields become
+            # labels, no option reduces that), so only forward rare critical+
+            # events. Lower priorities stay in the UI and are alerted on as
+            # aggregated rates by FalcoWarningAlert (Prometheus rules).
+            minimumpriority: critical
             customseveritymap: "emergency:critical,alert:critical,critical:critical,error:warning,warning:warning,notice:info"
 
   mariadb-crds:

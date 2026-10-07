@@ -182,6 +182,18 @@ spec:
             summary: "Falco is not running"
             description: "Falco metrics target has been down for 10 minutes. Runtime security monitoring is inactive."
 
+    - name: homelab.alertmanager
+      rules:
+        - alert: AlertmanagerAlertFlood
+          expr: |
+            sum(rate(alertmanager_alerts_received_total[5m])) > 20
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Alertmanager is receiving an abnormal alert rate"
+            description: 'Alertmanager receives {{ "{{" }} $value | humanize {{ "}}" }} alerts/s. A sender is probably posting one alert per event (e.g. falcosidekick); find it before Alertmanager is OOMKilled.'
+
     - name: homelab.http
       rules:
         - alert: ServiceDown
