@@ -202,10 +202,10 @@ operators:
               # falcosidekick forwarded each one to Alertmanager as its own
               # alert, OOMKilling it. Scoped to mise-installed binaries only.
               - name: ci_mise_installed_tools
-                fields: [container.image.repository, proc.exepath]
-                comps: [=, startswith]
+                fields: [k8s.ns.name, container.image.repository, proc.exepath]
+                comps: [=, =, startswith]
                 values:
-                  - [code.olsen.cloud/ci/mise, /mise/installs/]
+                  - [prod, code.olsen.cloud/ci/mise, /mise/installs/]
       falcosidekick:
         enabled: true
         # Redis had grown past 2 GiB with no bound. Keep recent UI events but
