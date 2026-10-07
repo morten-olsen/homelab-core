@@ -197,6 +197,15 @@ operators:
                 comps: [=, =]
                 values:
                   - [gitea, /app/gitea/gitea]
+              # Woodpecker steps in the ci/mise image install their toolchain at
+              # runtime and exec it; every node exec fired this rule (~6/s) and
+              # falcosidekick forwarded each one to Alertmanager as its own
+              # alert, OOMKilling it. Scoped to mise-installed binaries only.
+              - name: ci_mise_installed_tools
+                fields: [k8s.ns.name, container.image.repository, proc.exepath]
+                comps: [=, =, startswith]
+                values:
+                  - [prod, code.olsen.cloud/ci/mise, /mise/installs/]
       falcosidekick:
         enabled: true
         # Redis had grown past 2 GiB with no bound. Keep recent UI events but
