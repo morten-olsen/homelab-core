@@ -20,7 +20,7 @@ spec:
     server: https://kubernetes.default.svc
   project: {{ $global.project }}
   source:
-    repoURL: https://istio-release.storage.googleapis.com/charts
+    repoURL: https://blob.istio.io/istio-release/charts
     targetRevision: {{ $gateway.version }}
     chart: gateway
     helm:

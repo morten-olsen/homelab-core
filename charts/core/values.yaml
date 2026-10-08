@@ -287,9 +287,9 @@ operators:
 
   istio-base:
     enabled: true
-    version: 1.30.5
+    version: 1.31.1
     namespace: istio-system
-    repoURL: https://istio-release.storage.googleapis.com/charts
+    repoURL: https://blob.istio.io/istio-release/charts
     chart: base
     values:
       defaultRevision: default
@@ -302,9 +302,9 @@ operators:
 
   istiod:
     enabled: true
-    version: 1.30.5
+    version: 1.31.1
     namespace: istio-system
-    repoURL: https://istio-release.storage.googleapis.com/charts
+    repoURL: https://blob.istio.io/istio-release/charts
     chart: istiod
     values:
       meshConfig:
