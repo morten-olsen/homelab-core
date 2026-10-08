@@ -21,6 +21,10 @@ operators:
     enabled: {{ .Values.features.secrets }}
   falco:
     enabled: {{ .Values.features.security }}
+  intel-device-plugins-gpu:
+    enabled: {{ .Values.features.intelGpu }}
+  intel-device-plugins-operator:
+    enabled: {{ .Values.features.intelGpu }}
   istio-base:
     enabled: {{ .Values.features.serviceMesh }}
   istiod:
@@ -31,6 +35,8 @@ operators:
     enabled: {{ .Values.features.mariadb }}
   mariadb-operator:
     enabled: {{ .Values.features.mariadb }}
+  node-feature-discovery:
+    enabled: {{ .Values.features.intelGpu }}
   postgres:
     enabled: {{ .Values.features.postgres }}
   reflector:

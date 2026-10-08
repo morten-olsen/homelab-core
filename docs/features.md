@@ -147,6 +147,16 @@ Mirrors Secrets and ConfigMaps across namespaces based on annotations. Critical 
 
 Watches ConfigMaps and Secrets, automatically triggers rolling restarts of Deployments/StatefulSets when referenced configs change.
 
+### `intelGpu` — Intel iGPU Device Plugin
+
+| Component | Type | Chart |
+|-----------|------|-------|
+| Node Feature Discovery | Operator | `node-feature-discovery` from kubernetes-sigs.github.io |
+| Intel device plugins operator | Operator | `intel-device-plugins-operator` from intel.github.io |
+| Intel GPU plugin | Operator | `intel-device-plugins-gpu` from intel.github.io |
+
+Exposes the node's Intel iGPU as the `gpu.intel.com/i915` resource (shared by up to four pods). Disabled by default: enable it when a workload such as Jellyfin hardware transcoding requests the GPU.
+
 ### `storage` — Storage Class
 
 | Component | Type | Resource |
