@@ -72,6 +72,10 @@ features:
   # Workflow orchestration — Temporal server + UI (currently unused)
   temporal: false
 
+  # Intel iGPU device plugin — NFD + Intel device plugins operator + GPU
+  # plugin. Off until a workload (e.g. Jellyfin transcoding) requests the GPU.
+  intelGpu: false
+
 # -- Backup configuration (when features.backup is true) -------------------
 backup:
   nfs:

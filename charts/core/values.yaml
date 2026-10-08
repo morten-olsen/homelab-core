@@ -247,6 +247,44 @@ operators:
     repoURL: https://morten-olsen.github.io/homelab-dns-operator
     chart: dns-operator
 
+  # Intel iGPU support (features.intelGpu). Disabled: nothing requests
+  # gpu.intel.com/i915 yet. NFD labels the node, the operator runs the GPU
+  # plugin from the GpuDevicePlugin CR that intel-device-plugins-gpu creates.
+  node-feature-discovery:
+    enabled: false
+    version: 0.19.0
+    namespace: node-feature-discovery
+    repoURL: https://kubernetes-sigs.github.io/node-feature-discovery/charts
+    chart: node-feature-discovery
+
+  intel-device-plugins-operator:
+    enabled: false
+    version: 0.37.1
+    namespace: intel-device-plugins
+    repoURL: https://intel.github.io/helm-charts
+    chart: intel-device-plugins-operator
+
+  intel-device-plugins-gpu:
+    enabled: false
+    version: 0.37.1
+    namespace: intel-device-plugins
+    repoURL: https://intel.github.io/helm-charts
+    chart: intel-device-plugins-gpu
+    values:
+      nodeFeatureRule: true
+      # Up to four pods can share the iGPU.
+      sharedDevNum: 4
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - ServerSideApply=true
+        - ApplyOutOfSyncOnly=true
+        - CreateNamespace=true
+        # The GpuDevicePlugin CRD comes from the operator Application.
+        - SkipDryRunOnMissingResource=true
+
   istio-base:
     enabled: true
     version: 1.30.5
