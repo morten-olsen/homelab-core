@@ -11,20 +11,12 @@ The monitoring stack runs in the `monitoring` namespace and is managed by the `c
 | **Grafana** | Dashboards (private, at `grafana.olsen.cloud`) |
 | **Blackbox Exporter** | HTTP health probes for internal services |
 | **node-exporter hwmon** | Host CPU, NVMe, DIMM, board, and thermal-zone temperature metrics |
-| **ntfy-alertmanager** | Bridge: Alertmanager webhooks → ntfy notifications |
-| **ntfy** | Push notification delivery (app layer, `ntfy.olsen.cloud`) |
 
 ## Alert routing
 
-All alerts flow through Alertmanager and are delivered to ntfy (`homelab-alerts` topic) via the `ntfy-alertmanager` bridge running in the monitoring namespace.
+All alerts flow through Alertmanager, which currently has no push receiver: every route ends at the `null` receiver, so alerts are visible only in Alertmanager and Grafana.
 
-| Severity | Repeat interval | Examples |
-|---|---|---|
-| **critical** | 1 hour | Node disk >95%, pod crash-looping, service down, PVC nearly full |
-| **warning** | 4 hours | Node disk >85%, memory pressure, pod stuck not-ready |
-| *(none/info)* | — | Silenced — not actionable for a single-person homelab |
-
-The `Watchdog` alert (Prometheus canary) and `InfoInhibitor` are routed to null.
+The former `ntfy-alertmanager` bridge was removed because it could not deliver (ntfy rejected it with 403) and its failures fed `AlertmanagerFailedToSendAlerts`. Push delivery is to be redesigned separately.
 
 ## Custom alert rules
 
@@ -75,14 +67,6 @@ All probes target internal ClusterIP services (`*.svc.cluster.local`), not exter
 The `ServiceDown` and `ServiceSlowResponse` alert rules fire on `probe_success == 0` and `probe_duration_seconds > 5` respectively, routing through the same Alertmanager pipeline as infrastructure alerts.
 
 ## Configuration
-
-Key values in `charts/monitor/values.yaml`:
-
-```yaml
-ntfy:
-  url: http://ntfy.prod.svc.cluster.local  # internal ntfy service
-  topic: homelab-alerts                    # ntfy topic to publish to
-```
 
 To add a new HTTP probe target, add the internal service URL to the appropriate list in `charts/monitor/templates/blackbox-probes.yaml`.
 
