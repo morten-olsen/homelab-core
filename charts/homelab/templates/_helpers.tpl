@@ -110,9 +110,6 @@ global:
   ip: {{ .Values.platform.ip }}
   gatewayAddress: {{ .Values.platform.gatewayAddress }}
   project: monitor
-ntfy:
-  url: {{ .Values.monitoring.ntfy.url }}
-  topic: {{ .Values.monitoring.ntfy.topic }}
 backups:
   nfs:
     server: {{ .Values.backup.nfs.server }}

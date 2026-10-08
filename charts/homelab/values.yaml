@@ -78,12 +78,6 @@ backup:
     server: 192.168.20.106
     path: /mnt/HDD/k8s/backups
 
-# -- Monitoring configuration (when features.monitoring is true) -----------
-monitoring:
-  ntfy:
-    url: http://ntfy.prod.svc.cluster.local
-    topic: homelab-alerts
-
 # -- Sub-chart value overrides ---------------------------------------------
 # Escape hatch for power users. Values here are deep-merged into the
 # respective sub-chart's helm values, AFTER feature-derived values.

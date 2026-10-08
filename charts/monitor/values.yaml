@@ -11,10 +11,6 @@ global:
       - ApplyOutOfSyncOnly=true
       - CreateNamespace=true
 
-ntfy:
-  url: ""
-  topic: ""
-
 monitoring:
   prometheus-operator:
     enabled: true
@@ -124,20 +120,9 @@ monitoring:
               - matchers:
                   - alertname="InfoInhibitor"
                 receiver: "null"
-              - matchers:
-                  - severity="critical"
-                receiver: ntfy
-                repeat_interval: 1h
-              - matchers:
-                  - severity="warning"
-                receiver: ntfy
-                repeat_interval: 4h
+          # No push receiver: alerts are visible in Alertmanager and Grafana only.
           receivers:
             - name: "null"
-            - name: ntfy
-              webhook_configs:
-                - url: "http://ntfy-alertmanager.monitoring.svc.cluster.local:8080/hook"
-                  send_resolved: true
 
       # Node exporter
       nodeExporter:

@@ -75,21 +75,13 @@ Installs the MariaDB operator. Databases are created by applications as needed.
 |-----------|------|-----------------|
 | Prometheus | Application (wave 2) | `kube-prometheus-stack` |
 | Grafana | Included | Dashboards + persistence |
-| Alertmanager | Included | Alert routing to ntfy |
+| Alertmanager | Included | Alert routing (no push receiver) |
 | Blackbox Exporter | Application (wave 2) | HTTP probe endpoints |
 | Grafana dashboards | Resources | Backups, Falco, HTTP, Trivy |
 | Prometheus rules | Resources | Custom homelab alert rules |
 | Istio monitors | Resources | ServiceMonitor/PodMonitor for mesh |
 
 This feature controls the entire monitoring sub-chart (wave 2). When disabled, no monitoring Application is created.
-
-**Configuration:**
-```yaml
-monitoring:
-  ntfy:
-    url: http://ntfy.prod.svc.cluster.local
-    topic: homelab-alerts
-```
 
 ### `security` — Security Scanning and Policy
 

@@ -76,7 +76,7 @@ Each flag maps to one or more operators (in the core chart) and platform resourc
 
 - `homelab.operatorValues` -- maps features to `operators.X.enabled` flags
 - `homelab.platformValues` -- maps features to `resources.X.enabled` flags + platform config
-- `homelab.monitoringValues` -- passes domain, IP, ntfy config, backup paths
+- `homelab.monitoringValues` -- passes domain, IP, backup paths
 
 ### Overrides (Escape Hatch)
 
@@ -244,7 +244,6 @@ rendered directly:
 | `blackbox-probes.yaml` | `Probe` CRs targeting internal services |
 | `grafana-dashboard-*.yaml` | `ConfigMap` dashboards for Grafana |
 | `istio-monitors.yaml` | `ServiceMonitor`/`PodMonitor` for Istio mesh telemetry |
-| `ntfy-alertmanager.yaml` | Deployment for the ntfy-alertmanager webhook bridge |
 | `virtual-service.yaml` | Istio `VirtualService` for Grafana ingress |
 | `grafana-admin-secret.yaml` | `SealedSecret` for Grafana admin credentials |
 
