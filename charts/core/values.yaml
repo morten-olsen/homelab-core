@@ -208,20 +208,11 @@ operators:
                   - [prod, code.olsen.cloud/ci/mise, /mise/installs/]
       falcosidekick:
         enabled: true
-        # Redis had grown past 2 GiB with no bound. Keep recent UI events but
-        # prevent the observability stack from becoming a memory-pressure source.
+        # The web UI and its Redis are disabled: Redis kept every event (3 GiB,
+        # the largest memory consumer on the node) and rewrote its snapshot
+        # during CI bursts. Events are reviewed through Prometheus/Grafana.
         webui:
-          enabled: true
-          redis:
-            customConfig:
-              - maxmemory 2gb
-              - maxmemory-policy allkeys-lru
-            resources:
-              requests:
-                cpu: 50m
-                memory: 256Mi
-              limits:
-                memory: 4Gi
+          enabled: false
         config:
           alertmanager:
             hostport: http://prometheus-operator-kube-p-alertmanager.monitoring.svc.cluster.local:9093
