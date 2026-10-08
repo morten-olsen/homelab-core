@@ -201,10 +201,12 @@ operators:
               # runtime and exec it; every node exec fired this rule (~6/s) and
               # falcosidekick forwarded each one to Alertmanager as its own
               # alert, OOMKilling it. Scoped to mise-installed binaries only.
+              # Steps run in woodpecker-ci; prod stays until the move settles.
               - name: ci_mise_installed_tools
                 fields: [k8s.ns.name, container.image.repository, proc.exepath]
                 comps: [=, =, startswith]
                 values:
+                  - [woodpecker-ci, code.olsen.cloud/ci/mise, /mise/installs/]
                   - [prod, code.olsen.cloud/ci/mise, /mise/installs/]
       falcosidekick:
         enabled: true
