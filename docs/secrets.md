@@ -20,7 +20,7 @@ only regenerated if the secret is deleted.
 
 | Secret name | Chart | Template file | Length | Encoding | Notes |
 |---|---|---|---|---|---|
-| `volsync-restic` | shared | `backups.yaml` | 64 | default | Restic encryption password; reflected to all namespaces |
+| `volsync-restic` | shared | `backups.yaml` | 64 | default | Restic encryption password; reflected to all namespaces except `mission-control-agents` |
 | `pihole-password` | shared | `pihole-secrets.yaml` | 32 | default | Pi-hole admin UI password |
 | `pihole-dns-hmac-secret` | shared | `pihole-secrets.yaml` | 32 | default | DNS HMAC secret (key: `hmac-secret`) |
 | `postgres-cluster-controller` | shared | `postgres-role-secrets.yaml` | 32 | hex | CloudNative-PG controller credentials (`kubernetes.io/basic-auth` type, username: `controller`) |
@@ -121,17 +121,19 @@ terminates TLS.
 ### Volsync restic secret
 
 Defined in `charts/shared/templates/backups.yaml`. The `volsync-restic` secret
-is annotated to reflect to all namespaces so every `ReplicationSource` can
+is annotated to reflect to all namespaces except `mission-control-agents` so every `ReplicationSource` can
 reference it:
 
 ```yaml
 annotations:
   reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
   reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
-  reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: ""
+  reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "^(?!mission-control-agents$).+$"
+  reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "^(?!mission-control-agents$).+$"
 ```
 
-The empty `reflection-auto-namespaces` value means all namespaces. Note: this
+Both expressions permit every namespace except the exact name
+`mission-control-agents`, preventing automatic and manually requested reflection. Note: this
 uses the `v1` annotation prefix (different from the TLS certificate above).
 
 Both the ExternalSecret metadata **and** the `target.template.metadata` carry
@@ -167,7 +169,7 @@ Or copy and edit `cloudflare-secret.yaml`, then apply it.
    Reflector, cert-manager, Volsync).
 2. External Secrets Password generators create all service passwords
    automatically when the `shared` and `monitor` charts are deployed.
-3. Reflector copies the `volsync-restic` secret to all namespaces and the
+3. Reflector copies the `volsync-restic` secret to all namespaces except `mission-control-agents` and the
    wildcard TLS cert to `istio-ingress`.
 4. The Cloudflare API token must be created manually before cert-manager can
    issue certificates.
