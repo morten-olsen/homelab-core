@@ -35,8 +35,8 @@ offsite redundancy.
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | Volsync operator | `core` chart (`volsync-system` ns) | Runs mover pods on schedule |
-| Restic secret | `shared` ns, reflected to all namespaces | Single encryption password + repo path |
-| Reflector | `reflector` ns | Copies `volsync-restic` secret to all namespaces |
+| Restic secret | `shared` ns, reflected to all namespaces except `mission-control-agents` | Single encryption password + repo path |
+| Reflector | `reflector` ns | Copies `volsync-restic` secret to all namespaces except `mission-control-agents` |
 | ReplicationSource | Per PVC | Defines what/when/how to back up |
 | NFS share | `192.168.20.106:/mnt/HDD/k8s/backups` | Backup storage target |
 
@@ -88,7 +88,7 @@ first mover run, otherwise the mover pod gets stuck in `Init:0/2` with
 A single restic encryption password is generated automatically in the `shared`
 namespace via an External Secrets Password generator with `refreshInterval: "0"`
 (generated once, never rotated). The Reflector operator copies the
-`volsync-restic` secret to all other namespaces automatically.
+`volsync-restic` secret to all other namespaces except `mission-control-agents` automatically.
 
 The secret is created by: `charts/shared/templates/backups.yaml`
 
@@ -267,3 +267,14 @@ See [disaster-recovery.md](disaster-recovery.md) for the complete procedure cove
 | monitoring | grafana | 02:00 daily |
 
 Schedules are staggered to avoid NFS contention.
+
+### Updating reflection annotations without rotating the password
+
+The generator-backed ExternalSecret has `refreshInterval: "0"`. ESO skips
+refresh while existing Secret data is valid, including after template edits.
+When changing reflection annotations, first reconcile the template through
+GitOps, then update only the existing source Secret metadata to match. Never
+force-sync, delete the source Secret, or change its data: that can generate a
+new password and make existing backups inaccessible. Record the metadata-only
+patch and verify source identity, unchanged data, and backup consumer health
+in the Mission Control task.

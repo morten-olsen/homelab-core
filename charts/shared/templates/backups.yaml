@@ -1,5 +1,5 @@
 {{- /* Volsync backup sources. Generates a shared restic secret (reflected to all
-       namespaces via Reflector) and a ReplicationSource per backup target. */ -}}
+       namespaces except mission-control-agents via Reflector) and a ReplicationSource per backup target. */ -}}
 {{- if .Values.resources.backups.enabled }}
 {{- $backup := .Values.resources.backups }}
 ---
@@ -23,7 +23,8 @@ metadata:
   annotations:
     reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
     reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
-    reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: ""
+    reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "^(?!mission-control-agents$).+$"
+    reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "^(?!mission-control-agents$).+$"
 spec:
   refreshInterval: "0"
   target:
@@ -36,7 +37,8 @@ spec:
         annotations:
           reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
           reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
-          reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: ""
+          reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "^(?!mission-control-agents$).+$"
+          reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "^(?!mission-control-agents$).+$"
       data:
         RESTIC_REPOSITORY: /mnt/backup
         RESTIC_PASSWORD: "{{ "{{" }} .password {{ "}}" }}"
