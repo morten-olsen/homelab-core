@@ -12,6 +12,7 @@ ci = classes["woodpecker-ci"]
 assert ci["provisioner"] == "rancher.io/local-path"
 assert ci["volumeBindingMode"] == "WaitForFirstConsumer"
 assert ci["reclaimPolicy"] == "Delete"
+assert ci["metadata"]["annotations"]["defaultVolumeType"] == "local", "Match the node-local PV convention of the default class"
 assert "storageclass.kubernetes.io/is-default-class" not in ci["metadata"].get("annotations", {})
 config = next(obj["data"] for obj in objects if obj["kind"] == "ConfigMap")
 paths = json.loads(config["config.json"])
