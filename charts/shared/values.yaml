@@ -77,6 +77,12 @@ resources:
 
   storageClass:
     enabled: true
+    path: /var/lib/rancher/k3s/storage
+    # General SSD, with a CI subfolder; see docs/ci-storage.md before enabling on a new host.
+    ci:
+      node: compute
+      path: /mnt/ssd/woodpecker-ci
+      filesystemUUID: b8566ede-b661-4074-8b5a-f2dc743d6aee
 
   # -- DNS & Ad Blocking ----------------------------------------------------
 

@@ -10,6 +10,9 @@ A turnkey Kubernetes platform built with Helm and ArgoCD. Provides a complete, s
 
 ## Helm Repository
 
+CI disk layout and recovery are documented in [CI storage](docs/ci-storage.md).
+PR and push chart checks run `mise install && scripts/ci/validate-charts.sh`.
+
 All charts are published to a Helm repository:
 
 ```bash
