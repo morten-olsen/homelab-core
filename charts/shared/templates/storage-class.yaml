@@ -1,13 +1,41 @@
+{{- /* Shared guard for CI setup and deletion. Only the parent is host-mounted
+       in the provisioner's helper pod; the marker was created on the disk. */ -}}
+{{- define "homelab-shared.ci-volume-guard" -}}
+CI_ROOT={{ .ci.path | squote }}
+CI_UUID={{ required "CI filesystem UUID is required" .ci.filesystemUUID | squote }}
+case "$VOL_DIR" in
+  "$CI_ROOT"/*)
+    CI_NAME=${VOL_DIR#"$CI_ROOT"/}
+    if ! printf '%s\n' "$CI_NAME" | grep -Eq '^pvc-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_woodpecker-ci_[a-z0-9.-]+$' ||
+       [ -L "$VOL_DIR" ] || [ -L "$CI_ROOT/.filesystem-uuid" ] ||
+       [ "$(cat "$CI_ROOT/.filesystem-uuid" 2>/dev/null)" != "$CI_UUID" ]; then
+      echo "Error: Refusing CI volume with an unexpected path or missing disk marker" >&2
+      exit 1
+    fi
+    ;;
+esac
+{{- end -}}
 {{- /* Manages the k3s local-path StorageClass and its ConfigMap. The setup script
        creates human-readable symlinks at /var/lib/rancher/k3s/storage/pvc/<ns>/<name>
        so PVC data is easy to find on the host filesystem. */ -}}
 {{- if .Values.resources.storageClass.enabled -}}
+{{- $storage := .Values.resources.storageClass -}}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: local-path
   annotations:
     storageclass.kubernetes.io/is-default-class: "true"
+provisioner: rancher.io/local-path
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+
+---
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: woodpecker-ci
 provisioner: rancher.io/local-path
 volumeBindingMode: WaitForFirstConsumer
 reclaimPolicy: Delete
@@ -22,16 +50,43 @@ metadata:
 data:
   config.json: |-
     {
-      "nodePathMap":[
-        {
-          "node":"DEFAULT_PATH_FOR_NON_LISTED_NODES",
-          "paths":["/var/lib/rancher/k3s/storage"]
+      "nodePathMap":[],
+      "storageClassConfigs":{
+        "local-path":{
+          "nodePathMap":[{
+            "node":"DEFAULT_PATH_FOR_NON_LISTED_NODES",
+            "paths":{{ list $storage.path | toJson }}
+          }]
+        },
+        "woodpecker-ci":{
+          "nodePathMap":[{
+            "node":{{ $storage.ci.node | toJson }},
+            "paths":{{ list $storage.ci.path | toJson }}
+          }]
         }
-      ]
+      }
     }
   setup: |-
     #!/bin/sh
-    set -e
+    set -eu
+
+    {{- include "homelab-shared.ci-volume-guard" $storage | nindent 4 }}
+    case "$VOL_DIR" in
+      "$CI_ROOT"/*)
+        mkdir -m 0777 -p "$VOL_DIR"
+        exit 0
+        ;;
+    esac
+    PVC_ROOT={{ printf "%s/pvc" $storage.path | squote }}
+    NVME_ROOT={{ $storage.path | squote }}
+    case "$VOL_DIR" in
+      "$NVME_ROOT"/pvc-*)
+        if ! printf '%s\n' "${VOL_DIR#"$NVME_ROOT"/}" | grep -Eq '^pvc-[0-9a-f-]+_[a-z0-9-]+_[a-z0-9][a-z0-9.-]*$'; then
+          echo "Error: Refusing unexpected local-path volume" >&2; exit 1
+        fi
+        ;;
+      *) echo "Error: Refusing unexpected local-path volume" >&2; exit 1 ;;
+    esac
 
     if [ -z "${PVC_NAMESPACE:-}" ] || [ -z "${PVC_NAME:-}" ]; then
       if [ -n "${VOL_DIR:-}" ]; then
@@ -52,7 +107,7 @@ data:
       exit 1
     fi
 
-    PRETTY_PATH="/var/lib/rancher/k3s/storage/pvc/${PVC_NAMESPACE}/${PVC_NAME}"
+    PRETTY_PATH="$PVC_ROOT/${PVC_NAMESPACE}/${PVC_NAME}"
     mkdir -p "$PRETTY_PATH"
     chmod 777 "$PRETTY_PATH"
     ln -s "$PRETTY_PATH" "$VOL_DIR"
@@ -60,7 +115,23 @@ data:
     #!/bin/sh
     set -eu
 
-    PVC_ROOT="/var/lib/rancher/k3s/storage/pvc"
+    {{- include "homelab-shared.ci-volume-guard" $storage | nindent 4 }}
+    case "$VOL_DIR" in
+      "$CI_ROOT"/*)
+        rm -rf -- "$VOL_DIR"
+        exit 0
+        ;;
+    esac
+    PVC_ROOT={{ printf "%s/pvc" $storage.path | squote }}
+    NVME_ROOT={{ $storage.path | squote }}
+    case "$VOL_DIR" in
+      "$NVME_ROOT"/pvc-*)
+        if ! printf '%s\n' "${VOL_DIR#"$NVME_ROOT"/}" | grep -Eq '^pvc-[0-9a-f-]+_[a-z0-9-]+_[a-z0-9][a-z0-9.-]*$'; then
+          echo "Error: Refusing unexpected local-path volume" >&2; exit 1
+        fi
+        ;;
+      *) echo "Error: Refusing unexpected local-path volume" >&2; exit 1 ;;
+    esac
 
     if [ -L "$VOL_DIR" ]; then
       PRETTY_PATH=$(readlink "$VOL_DIR")
@@ -71,7 +142,8 @@ data:
       if [ "$RELATIVE_PATH" = "$PRETTY_PATH" ] ||
          [ -z "$NAMESPACE_PART" ] ||
          [ -z "$NAME_PART" ] ||
-         [ "$NAME_PART" != "${NAME_PART#*/}" ]; then
+         [ "$NAME_PART" != "${NAME_PART#*/}" ] ||
+         ! printf '%s\n' "$RELATIVE_PATH" | grep -Eq '^[a-z0-9-]+/[a-z0-9][a-z0-9.-]*$'; then
         echo "Error: Refusing to remove unexpected local-path target: $PRETTY_PATH"
         exit 1
       fi
@@ -80,7 +152,7 @@ data:
       rm -- "$VOL_DIR"
     elif [ -d "$VOL_DIR" ]; then
       case "$VOL_DIR" in
-        /var/lib/rancher/k3s/storage/pvc-*)
+        {{ $storage.path | squote }}/pvc-*)
           rm -rf -- "$VOL_DIR"
           ;;
         *)
