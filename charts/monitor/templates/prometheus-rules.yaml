@@ -8,31 +8,40 @@ spec:
   groups:
     - name: homelab.node
       rules:
+        - alert: NodeIOPressure
+          expr: rate(node_pressure_io_stalled_seconds_total[1m]) > 0.10
+          for: 30s
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node disk I/O is stalling workloads"
+            description: "All runnable work is blocked on disk I/O for over 10% of the last minute. Check NVMe and CI disk writes; reduce CI concurrency if services are affected."
+
         - alert: NodeDiskWarning
           expr: |
             (
-              node_filesystem_avail_bytes{mountpoint="/", fstype!="tmpfs"}
-              / node_filesystem_size_bytes{mountpoint="/", fstype!="tmpfs"}
+              node_filesystem_avail_bytes{mountpoint=~"/|/mnt/ssd", fstype!="tmpfs"}
+              / node_filesystem_size_bytes{mountpoint=~"/|/mnt/ssd", fstype!="tmpfs"}
             ) < 0.15
           for: 5m
           labels:
             severity: warning
           annotations:
             summary: "Node disk space low"
-            description: "Root filesystem has less than 15% free space. Consider cleaning up."
+            description: "A node filesystem has less than 15% free space. Consider cleaning up."
 
         - alert: NodeDiskCritical
           expr: |
             (
-              node_filesystem_avail_bytes{mountpoint="/", fstype!="tmpfs"}
-              / node_filesystem_size_bytes{mountpoint="/", fstype!="tmpfs"}
+              node_filesystem_avail_bytes{mountpoint=~"/|/mnt/ssd", fstype!="tmpfs"}
+              / node_filesystem_size_bytes{mountpoint=~"/|/mnt/ssd", fstype!="tmpfs"}
             ) < 0.05
           for: 5m
           labels:
             severity: critical
           annotations:
             summary: "Node disk space critically low"
-            description: "Root filesystem has less than 5% free space. Immediate action required."
+            description: "A node filesystem has less than 5% free space. Immediate action required."
 
         - alert: NodeMemoryPressure
           expr: |

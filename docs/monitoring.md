@@ -23,8 +23,10 @@ The former `ntfy-alertmanager` bridge was removed because it could not deliver (
 Defined in `charts/monitor/templates/prometheus-rules.yaml`. These replace or supplement noisy defaults with homelab-appropriate thresholds and patience windows.
 
 ### Node
-- **NodeDiskWarning** — root FS <15% free for 5m → warning
-- **NodeDiskCritical** — root FS <5% free for 5m → critical
+- **NodeIOPressure** — full I/O stalls >10% over 1m, sustained 30s → warning.
+  Inspect NVMe and CI disk writes and reduce CI concurrency if services stall.
+- **NodeDiskWarning** — root or CI FS <15% free for 5m → warning
+- **NodeDiskCritical** — root or CI FS <5% free for 5m → critical
 - **NodeMemoryPressure** — memory >90% for 15m → warning
 - **NodeHighLoad** — load15 >6 for 15m → warning
 

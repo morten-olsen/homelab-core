@@ -1,7 +1,7 @@
 apiVersion: v2
 name: homelab-monitor
 description: Monitoring stack for homelab Kubernetes cluster
-version: 0.2.6
+version: 0.2.7
 appVersion: "1.0"
 keywords:
   - homelab

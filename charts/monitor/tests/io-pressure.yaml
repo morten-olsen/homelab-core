@@ -1,0 +1,40 @@
+rule_files: [rules.yaml]
+evaluation_interval: 15s
+tests:
+  - name: incident-level disk stalls alert promptly and recover
+    interval: 15s
+    input_series:
+      - series: 'node_pressure_io_stalled_seconds_total{instance="compute"}'
+        values: '0+6x8 48+0x8'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: NodeIOPressure
+        exp_alerts:
+          - exp_labels: { instance: compute, severity: warning }
+            exp_annotations:
+              summary: "Node disk I/O is stalling workloads"
+              description: "All runnable work is blocked on disk I/O for over 10% of the last minute. Check NVMe and CI disk writes; reduce CI concurrency if services are affected."
+      - eval_time: 4m
+        alertname: NodeIOPressure
+        exp_alerts: []
+  - name: ordinary low pressure stays quiet
+    interval: 15s
+    input_series:
+      - series: 'node_pressure_io_stalled_seconds_total{instance="compute"}'
+        values: '0+0.15x16'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: NodeIOPressure
+        exp_alerts: []
+  - name: one brief stalled scrape stays quiet
+    interval: 15s
+    input_series:
+      - series: 'node_pressure_io_stalled_seconds_total{instance="compute"}'
+        values: '0 3 3+0x15'
+    alert_rule_test:
+      - eval_time: 45s
+        alertname: NodeIOPressure
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: NodeIOPressure
+        exp_alerts: []
