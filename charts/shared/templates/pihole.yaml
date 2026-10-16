@@ -55,6 +55,10 @@ spec:
               value: {{ $global.timezone | quote }}
             - name: FTLCONF_dns_listeningMode
               value: 'ALL'
+            # servicelb SNATs every LAN client to the node address, so a
+            # per-client rate limit refuses DNS for the whole network at once
+            - name: FTLCONF_dns_rateLimit_count
+              value: '0'
             - name: FTLCONF_webserver_api_password
               valueFrom:
                 secretKeyRef:
