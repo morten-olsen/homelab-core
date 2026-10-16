@@ -26,6 +26,9 @@ metadata:
 spec:
   replicas: 1
   revisionHistoryLimit: 2
+  # hostPort 53 can only be held by one pod on the node at a time
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: "pihole"
@@ -44,10 +47,14 @@ spec:
           ports:
             - containerPort: 80
               name: http
+            # DNS is served on the node's port 53 directly rather than through
+            # servicelb, whose MASQUERADE hides every client behind 10.42.0.1
             - containerPort: 53
+              hostPort: 53
               name: dns-udp
               protocol: UDP
             - containerPort: 53
+              hostPort: 53
               name: dns-tcp
               protocol: TCP
           env:
@@ -55,8 +62,8 @@ spec:
               value: {{ $global.timezone | quote }}
             - name: FTLCONF_dns_listeningMode
               value: 'ALL'
-            # servicelb SNATs every LAN client to the node address, so a
-            # per-client rate limit refuses DNS for the whole network at once
+            # Disabled since a Steam burst made it refuse DNS network-wide while
+            # every client shared 10.42.0.1; revisit now that clients are distinct
             - name: FTLCONF_dns_rateLimit_count
               value: '0'
             - name: FTLCONF_webserver_api_password
@@ -105,7 +112,7 @@ metadata:
   labels:
     app: "pihole"
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   ports:
     - port: 53
       targetPort: 53
