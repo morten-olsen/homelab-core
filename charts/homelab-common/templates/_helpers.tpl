@@ -505,6 +505,35 @@ spec:
 {{- end }}
 {{- end }}
 
+{{/*
+Optional Istio corsPolicy for both VirtualServices. Passed through as written,
+except that {domain} is replaced by globals.domain (regex-escaped inside regex
+origin matchers, so "olsen.cloud" cannot match "olsenXcloud").
+*/}}
+{{- define "common.virtualServiceCorsPolicy" -}}
+{{- with .Values.virtualService.corsPolicy }}
+{{- $cors := deepCopy . }}
+{{- $domain := $.Values.globals.domain }}
+{{- $origins := list }}
+{{- range $cors.allowOrigins }}
+{{- $match := dict }}
+{{- range $kind, $value := . }}
+{{- if eq $kind "regex" }}
+{{- $_ := set $match $kind ($value | replace "{domain}" (regexQuoteMeta $domain)) }}
+{{- else }}
+{{- $_ := set $match $kind ($value | replace "{domain}" $domain) }}
+{{- end }}
+{{- end }}
+{{- $origins = append $origins $match }}
+{{- end }}
+{{- if $origins }}
+{{- $_ := set $cors "allowOrigins" $origins }}
+{{- end }}
+corsPolicy:
+  {{- toYaml $cors | nindent 2 }}
+{{- end }}
+{{- end }}
+
 {{- define "common._virtualService" -}}
 {{- if .Values.virtualService }}
 {{- if and .Values.virtualService.enabled .Values.subdomain (hasKey .Values.globals "domain") (ne .Values.globals.domain "") }}
@@ -536,6 +565,9 @@ spec:
               {{- else }}
               number: {{ include "common.servicePort" . }}
               {{- end }}
+      {{- with include "common.virtualServiceCorsPolicy" . | trim }}
+      {{- . | nindent 6 }}
+      {{- end }}
 
 {{- end }}
 {{- if and .Values.virtualService.gateways (or .Values.virtualService.gateways.private .Values.virtualService.gateways.public) (hasKey .Values.globals "istio") (hasKey .Values.globals.istio "gateways") (hasKey .Values.globals.istio.gateways "private") (ne .Values.globals.istio.gateways.private "") }}
@@ -566,6 +598,9 @@ spec:
               {{- else }}
               number: {{ include "common.servicePort" . }}
               {{- end }}
+      {{- with include "common.virtualServiceCorsPolicy" . | trim }}
+      {{- . | nindent 6 }}
+      {{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

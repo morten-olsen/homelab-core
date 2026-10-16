@@ -214,7 +214,18 @@ virtualService:
     private: true                  # LAN-only gateway
   servicePort: 80                  # optional, defaults to service port
   allowWildcard: false             # optional, adds *.subdomain.domain
+  corsPolicy:                      # optional Istio HTTPCorsPolicy, set on both routes
+    allowOrigins:
+      - exact: "https://app.{domain}"
+      - regex: "https://([a-z0-9-]+\\.)+{domain}"   # RE2, full-string match
+    allowMethods: [GET, POST]
+    allowHeaders: [authorization, content-type]
+    maxAge: 24h
 ```
+
+`corsPolicy` is rendered as written. Envoy answers preflights for matching
+origins, so the app needs no CORS support of its own. Inside `regex`
+matchers, `{domain}` is regex-escaped.
 
 When `virtualService.enabled: true`, a ServiceEntry is also created for mesh-internal DNS resolution (prevents hairpinning through public DNS).
 
@@ -335,7 +346,7 @@ Dynamic values resolved at template time:
 | `{domain}` | `.Values.globals.domain` | `example.com` |
 | `{timezone}` | `.Values.globals.timezone` | `Europe/Amsterdam` |
 
-Supported in: `env`, `command`, `args`, `initContainers`, volume references (`configMap`, `secret`), `serviceAccountName`.
+Supported in: `env`, `command`, `args`, `initContainers`, volume references (`configMap`, `secret`), `serviceAccountName`, `virtualService.corsPolicy.allowOrigins`.
 
 ## Blackbox Probe
 
