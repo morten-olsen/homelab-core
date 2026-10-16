@@ -62,10 +62,11 @@ spec:
               value: {{ $global.timezone | quote }}
             - name: FTLCONF_dns_listeningMode
               value: 'ALL'
-            # Disabled since a Steam burst made it refuse DNS network-wide while
-            # every client shared 10.42.0.1; revisit now that clients are distinct
+            # Per client, 60s window (Pi-hole default). Only meaningful because the
+            # hostPort keeps client addresses distinct; through servicelb every
+            # client shared 10.42.0.1 and one Steam burst refused the whole LAN
             - name: FTLCONF_dns_rateLimit_count
-              value: '0'
+              value: '1000'
             - name: FTLCONF_webserver_api_password
               valueFrom:
                 secretKeyRef:
