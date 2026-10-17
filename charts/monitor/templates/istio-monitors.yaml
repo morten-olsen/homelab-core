@@ -38,3 +38,19 @@ spec:
     - port: http-envoy-prom
       interval: 15s
       path: /stats/prometheus
+    # Agent health is already reachable on the pod IP, but 15020 is not a
+    # declared container port. Discover the single Envoy port, then rewrite it;
+    # portNumber: 15020 would silently drop this target. No Service is needed.
+    - port: http-envoy-prom
+      interval: 15s
+      path: /metrics
+      relabelings:
+        - sourceLabels: [__address__]
+          regex: '(.+):[0-9]+'
+          targetLabel: __address__
+          replacement: '${1}:15020'
+      metricRelabelings:
+        # The agent merges Envoy metrics; keep only its WASM health here.
+        - sourceLabels: [__name__]
+          regex: 'istio_agent_wasm_.*'
+          action: keep

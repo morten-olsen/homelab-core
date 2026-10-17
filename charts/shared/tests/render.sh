@@ -10,3 +10,4 @@ helm template shared "$chart" --namespace shared \
   --show-only templates/storage-class.yaml \
   | yq -o=json -I=0 '.' | jq -s '.' > "$tmp/objects.json"
 python3 "$chart/tests/storage_test.py" "$tmp"
+python3 "$chart/tests/waf_test.py"

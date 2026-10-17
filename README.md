@@ -12,6 +12,8 @@ A turnkey Kubernetes platform built with Helm and ArgoCD. Provides a complete, s
 
 CI disk layout and recovery are documented in [CI storage](docs/ci-storage.md).
 PR and push chart checks run `mise install && scripts/ci/validate-charts.sh`.
+They cover storage safety, public-only Coraza selection, WASM health scraping
+and I/O alerts through rendered manifests and executable rule tests.
 
 All charts are published to a Helm repository:
 

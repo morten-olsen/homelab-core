@@ -4,7 +4,7 @@ This document covers the networking stack: Istio service mesh, gateway architect
 
 ## Istio Sidecar Mesh
 
-The cluster runs Istio 1.29.1 in **sidecar mode** (the default). Istio injects an Envoy sidecar proxy into every pod in labeled namespaces, handling mTLS, L4/L7 routing, DNS interception, and observability. Sidecar injection is enabled on the `prod`, `prod-containarr`, `shared`, `monitoring`, and `demo` namespaces via the `istio-injection: enabled` label.
+The cluster runs Istio 1.31.1 in **sidecar mode** (the default). Istio injects an Envoy sidecar proxy into every pod in labeled namespaces, handling mTLS, L4/L7 routing, DNS interception, and observability. Sidecar injection is enabled on the `prod`, `prod-containarr`, `shared`, `monitoring`, and `demo` namespaces via the `istio-injection: enabled` label.
 
 istiod is configured with DNS capture so the sidecar can intercept DNS queries for mesh-internal hostnames. This ensures that when a pod resolves a public domain (e.g. `ntfy.olsen.cloud`), the sidecar routes traffic directly to the in-cluster service via the `mesh` gateway on VirtualServices, avoiding internet hairpinning:
 
@@ -77,20 +77,20 @@ Both accept all hosts (`"*"`). Access restriction (public vs. private) is handle
 
 ## Web Application Firewall (WAF)
 
-Internet-facing traffic is inspected by [Coraza Proxy WASM](https://github.com/corazawaf/coraza-proxy-wasm) — an OWASP project that runs the [Core Rule Set v4](https://coreruleset.org/) inside Envoy as a WebAssembly filter. The filter is loaded into the gateway pod via an Istio `WasmPlugin` (`charts/shared/templates/waf.yaml`) and is **scoped to the public listener ports only** (18080 / 18443) — LAN traffic on 80 / 443 is not inspected.
+The chart configures public-listener inspection with [Coraza Proxy WASM](https://github.com/corazawaf/coraza-proxy-wasm) — an OWASP project that runs the [Core Rule Set v4](https://coreruleset.org/) inside Envoy as a WebAssembly filter. The filter is loaded into the gateway pod via an Istio `WasmPlugin` (`charts/shared/templates/waf.yaml`) and is **scoped to the public listener ports only** (18080 / 18443) — LAN traffic on 80 / 443 is not inspected.
 
 The WASM image (`ghcr.io/corazawaf/coraza-proxy-wasm`) bundles the CRS rules at build time, so the `Include @owasp_crs/*.conf` directives resolve to virtual paths inside the module — there is no separate ConfigMap to manage.
 
 ### Why scoped to public only
 
-The single gateway Deployment serves both classes of traffic on different ports. Coraza adds non-zero CPU per request and (per the maintainers' own release notes) may drift in memory under sustained load. LAN-side apps are already on a trusted network and don't need the same scrutiny, so we attach the filter only to the public listener chains via `WasmPlugin.match.ports`.
+The single gateway Deployment serves both classes of traffic on different ports. Coraza adds non-zero CPU per request and (per the maintainers' own release notes) may drift in memory under sustained load. LAN-side apps are already on a trusted network and don't need the same scrutiny, so we attach the filter only to the public listener chains via `WasmPlugin.match.ports`. The match uses `mode: CLIENT`: Istio classifies gateway listeners as CLIENT even though requests arrive from outside. `SERVER` selects sidecar inbound listeners and silently excludes gateways. See [Istio TrafficSelector](https://istio.io/latest/docs/reference/config/proxy_extensions/wasm-plugin/#TrafficSelector).
 
 ### Configuration knobs (`charts/shared/values.yaml`)
 
 ```yaml
 resources:
   waf:
-    enabled: false              # master switch
+    enabled: true               # current homelab configuration
     failStrategy: FAIL_OPEN     # FAIL_OPEN: pass traffic if WASM crashes
     image:
       repository: ghcr.io/corazawaf/coraza-proxy-wasm
@@ -104,12 +104,86 @@ resources:
     #   noisy.app.example.com: relaxed
 ```
 
-### Rollout playbook
+### Rollout and burn-in
 
-1. **Detection-only.** Deploy with `SecRuleEngine DetectionOnly` and `failStrategy: FAIL_OPEN`. CRS evaluates every public request and emits matches to Envoy access logs and `wasmcustom.coraza_*` stats, but nothing is blocked.
-2. **Watch.** For ~2 weeks: `kubectl logs -n istio-ingress -l istio=gateway -c istio-proxy | grep coraza`, the gateway pod's RSS in Grafana, and p50/p99 latency on public services.
-3. **Tune.** Apps that legitimately trip rules (Authentik OIDC, file uploads, ActivityPub federation) get a relaxed rule set under `perAuthorityDirectives` keyed by `:authority` (i.e. the request `Host` header).
-4. **Promote.** Flip `SecRuleEngine` to `On` to start blocking. Once stable for another week, flip `failStrategy` to `FAIL_CLOSE` so a WASM crash drops traffic instead of silently disabling the WAF.
+On 2026-10-17 the deployed plugin still used `SERVER`; the gateway agent cache
+was empty and controlled public HTTPS scanner markers produced no Coraza hits.
+The enabled values and ArgoCD health had not established inspection. Task
+`4704aace-c735-4ee1-b46c-6dcb692b8f21` records the diagnosis and repair. A new
+burn-in starts only after the following runtime checks pass; elapsed time since
+initial enablement is not burn-in evidence.
+
+1. Deploy the reviewed `CLIENT` repair, keeping `SecRuleEngine DetectionOnly`,
+   `FAIL_OPEN`, the gateway selector and public ports. Nothing is blocked in this
+   mode. FAIL_OPEN concerns plugin failures; it does not make gateway pod
+   restarts or resource exhaustion harmless to availability.
+2. Verify the Forgejo build, push mirror and ArgoCD shared/monitor revisions, then
+   the live WasmPlugin fields. Confirm agent fetch/conversion success and a
+   populated cache, and discover the actual Coraza metric names and labels.
+   The [gateway PodMonitor](monitoring.md#gateway-wasm-health) retains agent
+   health separately from the existing Envoy scrape.
+3. Run the same harmless scanner marker against public HTTPS 18443 and private
+   HTTPS 443. Require public CRS rule 913100 evidence and a processed-request
+   metric delta, with no private inspection delta. Compare the actual filter
+   attachment/extension references on all listeners as supplementary evidence.
+   A 200/404 response or absent private log line alone is insufficient, and HTTP
+   redirects do not establish HTTPS inspection. See the procedure below.
+4. Record the verified UTC start and retained series in the task. Over roughly
+   two weeks review sanitized rule counts, public request latency (p50/p99),
+   gateway RSS and restarts. Measure representative auth, uploads, ActivityPub
+   federation and NetBird gRPC, including workload peaks. Current public
+   `netbird-client` routing includes management and signal gRPC paths; the old
+   assumption that there are no public gRPC services is obsolete. In particular,
+   CRS 920420 may flag legitimate gRPC content types. An unauthenticated error
+   response does not validate a successful authenticated flow.
+5. Tune only evidenced false positives with narrow rule/host exclusions, subject
+   to security review. Do not introduce broad per-host bypasses. Report any
+   unexercised paths or sustained memory/latency behavior as unverified. Build
+   the dashboard with Designer direction after actual retained Coraza series
+   and labels are known; do not invent anomaly or would-block series.
+6. Morten decides enforcement and FAIL_CLOSE after reviewed burn-in evidence.
+   They are outside this repair. Keep private listeners excluded.
+
+### Controlled inspection check
+
+Resolve the current pod with `kubectl get pods -n istio-ingress -l istio=gateway`.
+Take before/after snapshots of the agent's `localhost:15020/metrics` (retain only
+`istio_agent_wasm_*`) and Envoy's `localhost:15000/stats/prometheus` (retain only
+WASM/Coraza counters). The initialized module should expose successful fetch
+and conversion counters plus a nonzero cache. A cache entry alone proves a
+fetch, not per-request inspection. Absence from `config_dump` alone proves
+neither success nor failure.
+
+From the gateway container, send one request at a time, taking metric snapshots
+and a bounded log window between ports. TLS must validate; do not follow
+redirects or publish response bodies. The public probe is:
+
+```sh
+kubectl exec -n istio-ingress "$pod" -c istio-proxy -- \
+  curl -sS --max-time 15 --resolve code.olsen.cloud:18443:127.0.0.1 \
+  -H 'Host: code.olsen.cloud' -A nikto-coraza-smoke-test \
+  -o /dev/null -w '%{http_code}\n' \
+  https://code.olsen.cloud:18443/__waf_probe__
+```
+
+Repeat on 443, changing both the resolve port and URL. The `nikto` User-Agent
+is a CRS 913100 scanner signature; this GET has no exploit body and should return
+the application's ordinary 404 in DetectionOnly. Baseline `/api/v1/version`
+should still succeed on both HTTPS ports. Test HTTP ports 18080/80 separately
+for redirect health. Loopback exercises the gateway listeners, not external
+firewall/NAT traversal; record an external ingress check separately.
+
+Inspect logs locally for the marker and rule ID, retaining only aggregate rule
+IDs/counts and sanitized initialization failures. Never publish raw audit
+records, bodies, query strings, headers, cookies, credentials or tokens. Reset
+any temporary logging to its captured prior level. Confirm no gateway restart
+or readiness degradation. Record public-positive/private-negative results in
+the task before claiming that scope works.
+
+Rollback is a Git revert of the repair through Forgejo and its mirror, followed
+by ArgoCD revision and live-object checks. It restores the previous inactive
+selection and missing agent scrape, so the inspection gap must be recorded;
+it is not evidence that WAF protection remains available.
 
 ### Per-host rule customization
 

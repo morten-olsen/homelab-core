@@ -1,8 +1,7 @@
 {{- /* Coraza Proxy WASM as an Istio WasmPlugin attached to the public gateway
        listener. The single gateway pod serves both public (18080/18443) and
        private (80/443) ports — by matching only the public ports here, LAN
-       traffic is not inspected. Disabled by default; flip resources.waf.enabled
-       to roll out. See repos/core/docs/networking.md "Web Application Firewall"
+       traffic is not inspected. See docs/networking.md "Web Application Firewall"
        for the rollout playbook. */ -}}
 {{- if .Values.resources.waf.enabled -}}
 {{- $waf := .Values.resources.waf -}}
@@ -23,7 +22,8 @@ spec:
   phase: AUTHN
   failStrategy: {{ $waf.failStrategy | default "FAIL_OPEN" }}
   match:
-    - mode: SERVER
+    # Istio classifies gateway listeners as CLIENT, even for incoming requests.
+    - mode: CLIENT
       ports:
         - number: {{ $public.httpPort }}
         - number: {{ $public.httpsPort }}

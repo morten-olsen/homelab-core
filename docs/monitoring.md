@@ -85,3 +85,36 @@ board/WMI, and ACPI thermal-zone readings alongside reboot markers.
 The ACPI thermal zone includes the known bogus Gigabyte reading documented in the
 stability investigation; use the dashboard for trend/correlation, not as proof
 that the bogus ACPI critical threshold is real.
+
+## Gateway WASM health
+
+`charts/monitor/templates/istio-monitors.yaml` keeps the gateway Envoy scrape on
+pod port 15090 at `/stats/prometheus`, and adds an agent scrape on the same pod
+IP at 15020 `/metrics`. Both use the existing `istio-gateway` PodMonitor,
+`app=gateway` selector and `istio-ingress` namespace scope. No Service,
+VirtualService, public route, admin endpoint or RBAC grant is added.
+
+The gateway declares only the named `http-envoy-prom` container port (15090).
+The second endpoint discovers that single port and relabels `__address__` to
+15020. Using `portNumber: 15020` directly would drop the target because that
+port is undeclared. Before implementation, `/metrics` was reachable on the pod
+IP from Prometheus's config-reloader container using its BusyBox HTTP client.
+Verify the generated target is healthy after deployment; no restart is required.
+
+The agent endpoint merges Envoy statistics. A metric allowlist retains only
+`istio_agent_wasm_*` there to avoid ingesting the same Envoy/Coraza series twice.
+Use `up{job="monitoring/istio-gateway",instance=~".*:15020"}` for scrape health
+and the following module metrics (fetch/conversion series may be absent before
+any attempt):
+
+- `istio_agent_wasm_cache_entries`
+- `istio_agent_wasm_remote_fetch_count`, grouped by `result`
+- `istio_agent_wasm_config_conversion_count`, grouped by `result`
+
+Scrape health and successful fetching do not prove request inspection. Follow
+the [WAF runtime checks](networking.md#controlled-inspection-check), discover
+actual Coraza counters on the 15090 scrape, and confirm them in Prometheus
+before creating dashboard queries. Keep rule counts aggregate; do not put
+request or audit content in metric labels or dashboard panels. Retention is
+30 days or 50GiB, whichever removes data first. Burn-in starts only after the
+public-positive/private-negative check and retained telemetry are verified.

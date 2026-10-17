@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Keep the storage scripts and I/O alert executable on every PR and push.
+# Check storage scripts, WAF listener scope, agent scraping and I/O alerts on every PR and push.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 tmp="$(mktemp -d)"

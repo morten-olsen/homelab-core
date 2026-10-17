@@ -43,9 +43,9 @@ resources:
       httpsPort: 443
 
   # -- Web Application Firewall --------------------------------------------
-  # Coraza Proxy WASM, attached to the public gateway listener only. Disabled
-  # by default; rollout is detection-only first, then SecRuleEngine On +
-  # FAIL_CLOSE. See docs/networking.md "Web Application Firewall (WAF)".
+  # Coraza Proxy WASM, attached to public gateway CLIENT listeners only.
+  # DetectionOnly + FAIL_OPEN until representative burn-in is reviewed and
+  # Morten approves enforcement. See docs/networking.md "Web Application Firewall (WAF)".
 
   waf:
     enabled: true
