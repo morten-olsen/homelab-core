@@ -19,7 +19,7 @@ spec:
       interval: 30s
       path: /metrics
 ---
-# Scrape ingress gateway Envoy metrics (container port 15090, not on Service)
+# Scrape merged gateway Envoy, Coraza and agent metrics on pod port 15020
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
@@ -35,22 +35,16 @@ spec:
     matchLabels:
       app: gateway
   podMetricsEndpoints:
+    # Discover one declared port, then use the reachable agent endpoint. The
+    # scraper's Istio sidecar captures outbound 15090 and serves its OWN stats.
+    # Agent 15020 merges the actual gateway stats with WASM health; scrape once.
+    # Direct portNumber: 15020 would drop the undeclared port from discovery.
     - port: http-envoy-prom
       interval: 15s
       path: /stats/prometheus
-    # Agent health is already reachable on the pod IP, but 15020 is not a
-    # declared container port. Discover the single Envoy port, then rewrite it;
-    # portNumber: 15020 would silently drop this target. No Service is needed.
-    - port: http-envoy-prom
-      interval: 15s
-      path: /metrics
       relabelings:
         - sourceLabels: [__address__]
           regex: '(.+):[0-9]+'
           targetLabel: __address__
           replacement: '${1}:15020'
-      metricRelabelings:
-        # The agent merges Envoy metrics; keep only its WASM health here.
-        - sourceLabels: [__name__]
-          regex: 'istio_agent_wasm_.*'
-          action: keep
+          action: replace

@@ -121,7 +121,7 @@ initial enablement is not burn-in evidence.
    the live WasmPlugin fields. Confirm agent fetch/conversion success and a
    populated cache, and discover the actual Coraza metric names and labels.
    The [gateway PodMonitor](monitoring.md#gateway-wasm-health) retains agent
-   health separately from the existing Envoy scrape.
+   health together with the actual gateway Envoy and Coraza metrics.
 3. Run the same harmless scanner marker against public HTTPS 18443 and private
    HTTPS 443. Require public CRS rule 913100 evidence and a processed-request
    metric delta, with no private inspection delta. Compare the actual filter
@@ -149,7 +149,7 @@ initial enablement is not burn-in evidence.
 Resolve the current pod with `kubectl get pods -n istio-ingress -l istio=gateway`.
 Take before/after snapshots of the agent's `localhost:15020/metrics` (retain only
 `istio_agent_wasm_*`) and Envoy's `localhost:15000/stats/prometheus` (retain only
-WASM/Coraza counters). The initialized module should expose successful fetch
+`waf_filter_*` and WASM counters). The initialized module should expose successful fetch
 and conversion counters plus a nonzero cache. A cache entry alone proves a
 fetch, not per-request inspection. Absence from `config_dump` alone proves
 neither success nor failure.

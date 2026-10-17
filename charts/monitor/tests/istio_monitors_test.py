@@ -18,25 +18,16 @@ assert monitor["metadata"]["namespace"] == "monitoring"
 spec = monitor["spec"]
 assert spec["namespaceSelector"] == {"matchNames": ["istio-ingress"]}
 assert spec["selector"] == {"matchLabels": {"app": "gateway"}}
-envoy, agent = spec["podMetricsEndpoints"]
-assert envoy == {
-    "port": "http-envoy-prom", "interval": "15s", "path": "/stats/prometheus"
-}, "Keep the existing Envoy scrape"
+assert len(spec["podMetricsEndpoints"]) == 1, "Scrape merged metrics once; avoid the sidecar-intercepted 15090 endpoint"
+agent, = spec["podMetricsEndpoints"]
 assert agent["port"] == "http-envoy-prom", "Discover one declared port per gateway"
-assert agent["path"] == "/metrics" and agent["interval"] == "15s"
+assert agent["path"] == "/stats/prometheus" and agent["interval"] == "15s"
 rewrite, = agent["relabelings"]
 assert rewrite["sourceLabels"] == ["__address__"]
 assert rewrite["targetLabel"] == "__address__"
 assert rewrite["replacement"] == "${1}:15020"
 match = re.fullmatch(rewrite["regex"], "10.42.0.93:15090")
 assert match and match.group(1) == "10.42.0.93", "Use the pod IP, not a Service or admin port"
-allow, = agent["metricRelabelings"]
-assert allow["action"] == "keep" and allow["sourceLabels"] == ["__name__"]
-for name in ["istio_agent_wasm_cache_entries", "istio_agent_wasm_remote_fetch_count",
-             "istio_agent_wasm_config_conversion_count"]:
-    assert re.fullmatch(allow["regex"], name), f"Retain {name}"
-for name in ["istio_requests_total", "envoy_server_memory_allocated",
-             "wasmcustom_coraza_transactions_total", "process_resident_memory_bytes"]:
-    assert not re.fullmatch(allow["regex"], name), f"Do not duplicate {name}"
+assert not agent.get("metricRelabelings"), "Retain gateway Envoy, waf_filter_* and agent health together"
 assert {obj["kind"] for obj in objects} == {"PodMonitor", "ServiceMonitor"}
-print("ok: existing gateway discovery scrapes WASM health without merged metric duplication")
+print("ok: a single merged gateway scrape avoids sidecar interception and retains WAF transactions")

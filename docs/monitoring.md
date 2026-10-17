@@ -88,33 +88,46 @@ that the bogus ACPI critical threshold is real.
 
 ## Gateway WASM health
 
-`charts/monitor/templates/istio-monitors.yaml` keeps the gateway Envoy scrape on
-pod port 15090 at `/stats/prometheus`, and adds an agent scrape on the same pod
-IP at 15020 `/metrics`. Both use the existing `istio-gateway` PodMonitor,
-`app=gateway` selector and `istio-ingress` namespace scope. No Service,
-VirtualService, public route, admin endpoint or RBAC grant is added.
+`charts/monitor/templates/istio-monitors.yaml` uses one merged scrape of the
+gateway's pod IP on 15020 `/stats/prometheus`. The existing `istio-gateway`
+PodMonitor retains its `app=gateway` selector and `istio-ingress` scope. No
+Service, public route, admin endpoint, RBAC grant or gateway pod change is added.
 
-The gateway declares only the named `http-envoy-prom` container port (15090).
-The second endpoint discovers that single port and relabels `__address__` to
-15020. Using `portNumber: 15020` directly would drop the target because that
-port is undeclared. Before implementation, `/metrics` was reachable on the pod
-IP from Prometheus's config-reloader container using its BusyBox HTTP client.
-Verify the generated target is healthy after deployment; no restart is required.
+The gateway declares only `http-envoy-prom` (15090). The PodMonitor discovers
+that single port and relabels `__address__` to 15020. `portNumber: 15020` would
+drop the target because that port is undeclared. This address is reachable from
+Prometheus's config-reloader container with its BusyBox HTTP client.
 
-The agent endpoint merges Envoy statistics. A metric allowlist retains only
-`istio_agent_wasm_*` there to avoid ingesting the same Envoy/Coraza series twice.
-Use `up{job="monitoring/istio-gateway",instance=~".*:15020"}` for scrape health
-and the following module metrics (fetch/conversion series may be absent before
-any attempt):
+Runtime verification found a trap: Prometheus has a native Istio sidecar, which
+captures outbound traffic to 15090 and serves its own statistics. The old
+15090 target was `up=1`, but its Istio series identified the Prometheus workload,
+not the gateway. From the same container, gateway-IP:15020/stats/prometheus
+returns the real gateway's `waf_filter_tx_total` and agent WASM health. Using the
+merged endpoint once retains gateway Envoy, Coraza and agent statistics without
+double scraping. Verify the source workload/transaction counter as well as `up`.
+
+Use `up{job="monitoring/istio-gateway",instance=~".*:15020"}` for scrape health.
+Module metrics include (fetch/conversion series may be absent before an attempt):
 
 - `istio_agent_wasm_cache_entries`
 - `istio_agent_wasm_remote_fetch_count`, grouped by `result`
 - `istio_agent_wasm_config_conversion_count`, grouped by `result`
 
+Coraza 0.6.0 exposes `waf_filter_tx_total`, an unlabeled transaction counter,
+not the ticket's assumed `wasmcustom_coraza_*` family. It does not attach the
+configured owner/identifier labels to that total. Use the PodMonitor's pod/job
+labels. Discover other series from runtime before adding dashboard queries;
+rule logs are not interchangeable with interruption metrics in DetectionOnly.
+The [0.6.0 metrics implementation](https://github.com/corazawaf/coraza-proxy-wasm/blob/0.6.0/wasmplugin/metrics.go)
+provides transaction and actual-interruption counters, not an anomaly histogram
+or per-rule detection counter. Review sanitized rule-log counts for false
+positives; do not present absent interruption series as a would-block count.
+
 Scrape health and successful fetching do not prove request inspection. Follow
-the [WAF runtime checks](networking.md#controlled-inspection-check), discover
-actual Coraza counters on the 15090 scrape, and confirm them in Prometheus
-before creating dashboard queries. Keep rule counts aggregate; do not put
-request or audit content in metric labels or dashboard panels. Retention is
-30 days or 50GiB, whichever removes data first. Burn-in starts only after the
-public-positive/private-negative check and retained telemetry are verified.
+the [WAF runtime checks](networking.md#controlled-inspection-check), compare
+per-port transaction and sanitized rule-log deltas, then confirm retention in
+Prometheus. Keep rule counts aggregate; never put request/audit content in
+metric labels or panels. Retention is 30 days or 50GiB, whichever removes data
+first. Burn-in starts only after public-positive/private-negative inspection
+and retained telemetry are verified; the initial deployment's elapsed time is
+not evidence of this.
