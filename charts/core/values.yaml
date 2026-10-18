@@ -208,6 +208,51 @@ operators:
                 values:
                   - [woodpecker-ci, code.olsen.cloud/ci/mise, /mise/installs/]
                   - [prod, code.olsen.cloud/ci/mise, /mise/installs/]
+          # Approved 2026-10-18 in task 7f6e986c: executor filesystem reads
+          # and cleanup during image builds. Exact tuples preserve detection for
+          # build children, other sensitive files and shell-driven log clearing.
+          # New-binary execution stays detected; this only covers 262/4,142
+          # sampled events and does not address the dominant execution volume.
+          - rule: Read sensitive file untrusted
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_kaniko_executor_sensitive_files
+                fields: [k8s.ns.name, container.image.repository, proc.name, proc.pname, proc.exepath, fd.name]
+                comps: [=, =, =, =, =, =]
+                values:
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/shadow]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.conf]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/runuser-l]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/common-session-noninteractive]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/newusers]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/runuser]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/common-account]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/chfn]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/su]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/su-l]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/common-auth]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/login]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/other]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/common-session]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/passwd]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/chpasswd]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/chsh]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/common-password]
+          - rule: Clear Log Activities
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_kaniko_executor_build_logs
+                fields: [k8s.ns.name, container.image.repository, proc.name, proc.pname, proc.exepath, fd.name]
+                comps: [=, =, =, =, =, =]
+                values:
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /var/log/alternatives.log]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /var/log/dpkg.log]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /var/log/btmp]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /var/log/faillog]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /var/log/lastlog]
+                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /var/log/wtmp]
       falcosidekick:
         enabled: true
         # The web UI and its Redis are disabled: Redis kept every event (3 GiB,

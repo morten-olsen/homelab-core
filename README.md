@@ -14,6 +14,11 @@ CI disk layout and recovery are documented in [CI storage](docs/ci-storage.md).
 PR and push chart checks run `mise install && scripts/ci/validate-charts.sh`.
 They cover storage safety, public-only Coraza selection, WASM health scraping
 and I/O alerts through rendered manifests and executable rule tests.
+Core checks (`charts/core/tests/render.sh`) validate the rendered Falco exceptions:
+24 approved executor/file tuples and negative cases for every identity field,
+missing metadata, other files, build children and fontconfig shell log clearing.
+Native Falco rule compilation and a representative build are verified separately
+before and after rollout; tuple checks alone do not replay syscalls.
 
 All charts are published to a Helm repository:
 
