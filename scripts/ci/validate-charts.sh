@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Check storage scripts, WAF listener scope, agent scraping and I/O alerts on every PR and push.
+# Check Falco scopes, storage, WAF, scraping and I/O alerts on every PR and push.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 tmp="$(mktemp -d)"
@@ -11,6 +11,7 @@ if [ -z "${PROMTOOL:-}" ]; then
   tar -xz -C "$tmp" --strip-components=1 -f "$tmp/prometheus.tar.gz" prometheus-3.15.0.linux-amd64/promtool
   export PROMTOOL="$tmp/promtool"
 fi
-helm lint "$root/charts/shared" "$root/charts/monitor"
+helm lint "$root/charts/core" "$root/charts/shared" "$root/charts/monitor"
+"$root/charts/core/tests/render.sh"
 "$root/charts/shared/tests/render.sh"
 "$root/charts/monitor/tests/render.sh"
