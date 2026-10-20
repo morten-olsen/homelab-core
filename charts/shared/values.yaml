@@ -31,6 +31,11 @@ resources:
         memory: 128Mi
       limits:
         memory: 2Gi
+    # One node: a second Envoy adds no capacity (each uses every core), and an 80%
+    # target on a 100m request flapped between 1 and 5 replicas at ~80m of use.
+    autoscaling:
+      enabled: false
+    replicaCount: 1
 
   gateways:
     public:

@@ -368,6 +368,14 @@ operators:
             ISTIO_META_DNS_CAPTURE: "true"
             # DNS auto allocate - automatically assign virtual IPs for ServiceEntry hosts
             ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+      global:
+        proxy:
+          # Sidecar and istio-init requests. The chart default of 100m reserved 7.1 of
+          # the node's 20 cores across 71 sidecars that each use a few millicores, and
+          # left too little to schedule new pods (2026-10-20). The 2-core limit is kept.
+          resources:
+            requests:
+              cpu: 10m
     ignoreDifferences:
       - group: admissionregistration.k8s.io
         kind: ValidatingWebhookConfiguration
