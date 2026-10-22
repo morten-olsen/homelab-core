@@ -36,6 +36,12 @@ resources:
     autoscaling:
       enabled: false
     replicaCount: 1
+    # Local keeps the client source address: with Cluster, kube-proxy masquerades
+    # traffic to the LoadBalancer IP and every client reaches Envoy (and, via
+    # X-Forwarded-For, every app) as the node's cni0 address 10.42.0.1. One node
+    # means Local loses no traffic. Home Assistant banned 10.42.0.1 for everyone
+    # on 2026-10-16 and 2026-10-21 because of this.
+    externalTrafficPolicy: Local
 
   gateways:
     public:

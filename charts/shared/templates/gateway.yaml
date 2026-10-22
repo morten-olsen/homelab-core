@@ -35,6 +35,9 @@ spec:
         replicaCount: {{ . }}
         {{- end }}
         service:
+          {{- with $gateway.externalTrafficPolicy }}
+          externalTrafficPolicy: {{ . }}
+          {{- end }}
           ports:
             - name: status-port
               port: 15021

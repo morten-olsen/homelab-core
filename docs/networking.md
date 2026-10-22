@@ -61,6 +61,18 @@ Defined in `charts/shared/templates/gateway.yaml`. Deploys the upstream `istio/g
 | 18080 | http-public   | Public HTTP          |
 | 18443 | https-public  | Public HTTPS         |
 
+The gateway Service is a k3s ServiceLB `LoadBalancer` with
+`externalTrafficPolicy: Local` (`resources.gateway.externalTrafficPolicy`). With
+the default `Cluster` policy kube-proxy masquerades traffic to the LoadBalancer
+IP, so Envoy saw every client as the node's cni0 address `10.42.0.1` and put
+that into `X-Forwarded-For`; any per-client control behind the gateway (the WAF,
+Home Assistant's `ip_ban`, Authentik logs) then treated the whole internet as one
+client. `Local` preserves the source address and loses nothing on a single node.
+Apps that honour `X-Forwarded-For` must trust only the gateway pod range
+(`10.42.0.0/24`), never `0.0.0.0/0`. There is no HTTP proxy in front of the
+gateway (the UDM-Pro port forward is NAT), so Istio's `numTrustedProxies` stays
+at its default of 0.
+
 ### Gateway CRs
 
 Both are generated from the `_gateway.yaml` partial template. Each Gateway CR configures HTTP-to-HTTPS redirect on its HTTP port and SIMPLE TLS termination on its HTTPS port using the shared wildcard cert.
