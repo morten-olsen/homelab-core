@@ -31,3 +31,34 @@ assert match and match.group(1) == "10.42.0.93", "Use the pod IP, not a Service 
 assert not agent.get("metricRelabelings"), "Retain gateway Envoy, waf_filter_* and agent health together"
 assert {obj["kind"] for obj in objects} == {"PodMonitor", "ServiceMonitor"}
 print("ok: a single merged gateway scrape avoids sidecar interception and retains WAF transactions")
+
+# gRPC streams on private/public listeners can otherwise export the same
+# identity twice. Keep the fix at the producer and limited to these counters.
+output = subprocess.check_output([
+    "helm", "template", "monitor", str(chart), "--namespace", "monitoring",
+    "--show-only", "templates/gateway-telemetry.yaml"
+], text=True)
+documents = subprocess.check_output(
+    ["yq", "-o=json", "-I=0", "."], input=output, text=True
+)
+telemetry, = [json.loads(line) for line in documents.splitlines()]
+assert telemetry["apiVersion"] == "telemetry.istio.io/v1"
+assert telemetry["kind"] == "Telemetry"
+assert telemetry["metadata"]["namespace"] == "istio-ingress"
+assert telemetry["metadata"]["name"] == "gateway-grpc-message-identity"
+assert telemetry["spec"]["selector"] == {"matchLabels": {"app": "gateway"}}
+metrics, = telemetry["spec"]["metrics"]
+assert metrics["providers"] == [{"name": "prometheus"}]
+assert {rule["match"]["metric"] for rule in metrics["overrides"]} == {
+    "GRPC_REQUEST_MESSAGES", "GRPC_RESPONSE_MESSAGES"
+}
+assert len(metrics["overrides"]) == 2
+for rule in metrics["overrides"]:
+    assert rule == {
+        "match": {"metric": rule["match"]["metric"]},
+        "tagOverrides": {
+            "gateway_listener_port": {"value": "string(destination.port)"}
+        }
+    }, "Retain all counters and labels; add only a bounded listener-port dimension"
+assert set(telemetry["spec"]) == {"selector", "metrics"}
+print("ok: gateway gRPC message counters retain their private/public listener identity")
