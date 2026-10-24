@@ -131,3 +131,43 @@ metric labels or panels. Retention is 30 days or 50GiB, whichever removes data
 first. Burn-in starts only after public-positive/private-negative inspection
 and retained telemetry are verified; the initial deployment's elapsed time is
 not evidence of this.
+
+### Gateway duplicate message timestamps
+
+HOMEIT-431 traced `PrometheusDuplicateTimestamps` to four conflicting samples
+per gateway scrape: `istio_request_messages_total` and
+`istio_response_messages_total`, each for NetBird management and signal. Each
+pair had identical labels and different counter values in both the merged
+15020 endpoint and Envoy's direct 15090 endpoint. A single healthy target did
+not prove that every sample was retained. Changing scrape ports or timestamps
+would not repair this exporter output.
+
+`templates/gateway-telemetry.yaml` adds `gateway_listener_port` to only those
+two metric families through the [Istio Telemetry API](https://istio.io/latest/docs/reference/config/telemetry/),
+using `string(destination.port)`. The Telemetry resource
+selects `app=gateway` in `istio-ingress`; it does not change mesh-wide metrics.
+The label is the downstream local listener port, bounded by configured
+listeners (currently private 80/443 and public 18080/18443), rather than a
+request path, client address or connection ID. Existing queries that sum across
+listeners still work. No samples or alerts are disabled.
+
+A temporary live diagnostic confirmed xDS applied the two overrides, and
+nonexistent gRPC methods returned `UNIMPLEMENTED` through private TLS 443 and
+public TLS 18443. Newly generated message counters were retained as distinct
+listener-labeled identities. Old listener/stream scopes continued to expose
+unlabeled conflicting counters; this diagnostic alone did not clear the alert
+or prove an upstream allocator fix. Remove temporary diagnostic resources when
+finished, and make the retained configuration through GitOps.
+
+After reconciliation, inspect the live Telemetry and gateway `istio.stats`
+configuration, then check the entire raw merged payload for duplicate
+name/label identities. Old counters can survive an xDS update; if they remain,
+perform a controlled rolling gateway restart to retire those scopes, recording
+the recovery action in the task. Verify gateway availability and NetBird
+endpoints through the rollover. Confirm both gRPC families have retained
+samples on both TLS listeners, and retain the Envoy, `waf_filter_tx_total` and
+agent health metrics from the same scrape. Finally require no increase in
+`prometheus_target_scrapes_sample_duplicate_timestamp_total` over the full
+five-minute rule lookback, no new ingest warnings, and no active
+`PrometheusDuplicateTimestamps`
+in Prometheus or Alertmanager. Run the base repository's `task health:check`.

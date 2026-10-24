@@ -1,0 +1,26 @@
+# Preserve the listener identity of gateway gRPC message counters. Private and
+# public NetBird streams otherwise expose conflicting samples with equal labels.
+# destination.port is the proxy's local listener, not a client-controlled label.
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: gateway-grpc-message-identity
+  namespace: istio-ingress
+spec:
+  selector:
+    matchLabels:
+      app: gateway
+  metrics:
+    - providers:
+        - name: prometheus
+      overrides:
+        - match:
+            metric: GRPC_REQUEST_MESSAGES
+          tagOverrides:
+            gateway_listener_port:
+              value: string(destination.port)
+        - match:
+            metric: GRPC_RESPONSE_MESSAGES
+          tagOverrides:
+            gateway_listener_port:
+              value: string(destination.port)
