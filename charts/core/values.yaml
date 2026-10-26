@@ -241,7 +241,7 @@ operators:
 
   falco:
     enabled: true
-    version: 9.2.0
+    version: 9.2.1
     namespace: falco
     repoURL: https://falcosecurity.github.io/charts
     chart: falco
