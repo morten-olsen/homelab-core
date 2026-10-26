@@ -509,7 +509,7 @@ operators:
 
   kyverno:
     enabled: true
-    version: 3.9.1
+    version: 3.9.2
     namespace: kyverno
     repoURL: https://kyverno.github.io/kyverno
     chart: kyverno
