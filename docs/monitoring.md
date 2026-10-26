@@ -132,6 +132,49 @@ first. Burn-in starts only after public-positive/private-negative inspection
 and retained telemetry are verified; the initial deployment's elapsed time is
 not evidence of this.
 
+### Coraza detection-only dashboard
+
+**Homelab Coraza — Detection only** (`homelab-coraza`) is provisioned by
+`templates/grafana-dashboard-coraza.yaml` through the existing dashboard sidecar.
+It uses the existing private Grafana and Prometheus datasource, with a UTC,
+last-24-hours default and one-minute refresh. No collector, service, exposure,
+credential or WAF configuration is added.
+
+The persistent notice states DetectionOnly/FAIL_OPEN and incomplete application
+checks. It is a configuration reference, not a live engine-mode sensor. Activity
+uses `waf_filter_tx_total`; initialization uses agent cache/fetch/conversion
+metrics. Neither successful scraping nor a fetched module proves inspection of
+every request. An observed idle rate is distinct from missing data.
+
+The instant table is a snapshot **at the selected range end**, normally now.
+It starts from fresh `kube_pod_info`, requires an available inventory collector,
+and matches each current pod IP to its actual `:15020` target. Departed targets
+and old IPs cannot supply current success. Down/missing scrapes make module and
+transaction evidence Unknown; missing metrics on a successful scrape are Missing
+or Not observed. Unlisted fetch/conversion result types are not proven zero
+errors. Counts are since the current proxy start, including container restarts.
+An empty table means pod coverage is unknown, not that every pod is healthy.
+
+UI freshness checks use 30 seconds for the 15-second gateway source and 90
+seconds for the 30-second inventory source. They prevent stale success in the
+snapshot; they do **not** define an accepted retained-coverage gap tolerance.
+Historical RSS/CPU/restart views retain departed pods, use name-stable colours
+and do not connect null gaps or replace missing samples with zero. Request
+latency is gateway-wide, including private traffic and long-lived HTTP101/gRPC;
+it is not a public-request SLO or WAF overhead measurement. Derived rates can
+bridge collection gaps and do not certify continuous coverage.
+
+Rule-hit rankings, anomaly distributions and would-block counts are shown as
+unavailable rather than fabricated charts. The separate duplicate message-counter
+finding remains open; affected counters are not used by this dashboard. Links
+lead to the controlled runtime procedure and sanitized task evidence, never raw
+requests or audit records.
+
+`tests/coraza_dashboard_test.py` exercises the rendered PromQL with promtool
+fixtures for missing/down targets, missing modules, observed error results,
+inventory failure, IP rollover, counter reset and idle/absent traffic. Run it
+through `tests/render.sh` or the full `scripts/ci/validate-charts.sh` gate.
+
 ### Gateway duplicate message timestamps
 
 HOMEIT-431 traced `PrometheusDuplicateTimestamps` to four conflicting samples
