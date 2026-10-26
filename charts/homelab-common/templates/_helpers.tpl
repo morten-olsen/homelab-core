@@ -896,3 +896,75 @@ custom templates that mix common helpers with app-specific logic.
 {{- define "common.backup" -}}
 {{- include "common._render" (list "common._backup" (index . 0) (index . 1)) -}}
 {{- end }}
+
+{{/*
+Standalone Redis/Valkey Deployment and Service for existing single-pod stores.
+Accepts (list <rootContext> <storeValues>), independently of common.all.
+Explicit selectors and container names preserve existing workload identities.
+No volumes, auth, environment, or persistence defaults are added.
+*/}}
+{{- define "common.standaloneStore" -}}
+{{- $root := index . 0 -}}
+{{- $store := index . 1 -}}
+{{- $name := $store.name | replace "{release}" $root.Release.Name -}}
+{{- $selectorLabels := toYaml $store.selectorLabels | replace "{release}" $root.Release.Name -}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name | quote }}
+  {{- if $store.commonLabels }}
+  labels:
+    {{- include "common.labels" $root | nindent 4 }}
+  {{- end }}
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  revisionHistoryLimit: 0
+  selector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- $selectorLabels | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ $store.containerName | replace "{release}" $root.Release.Name | quote }}
+          image: "{{ $store.image.repository }}:{{ $store.image.tag }}"
+          imagePullPolicy: {{ $store.image.pullPolicy | quote }}
+          {{- with $store.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: {{ $store.portName }}
+              containerPort: {{ $store.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml $store.resources | nindent 12 }}
+          livenessProbe:
+            {{- toYaml $store.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml $store.readinessProbe | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name | quote }}
+  labels:
+    {{- if $store.commonLabels }}
+    {{- include "common.labels" $root | nindent 4 }}
+    {{- end }}
+    {{- $selectorLabels | nindent 4 }}
+spec:
+  type: {{ $store.service.type }}
+  ports:
+    - port: {{ $store.service.port }}
+      targetPort: {{ $store.service.targetPort }}
+      protocol: TCP
+      name: {{ $store.portName }}
+  selector:
+    {{- $selectorLabels | nindent 4 }}
+{{- end }}

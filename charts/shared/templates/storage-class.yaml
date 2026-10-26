@@ -171,6 +171,6 @@ data:
     spec:
       containers:
       - name: helper-pod
-        image: busybox
+        image: {{ $storage.helperImage | quote }}
         imagePullPolicy: IfNotPresent
 {{- end }}

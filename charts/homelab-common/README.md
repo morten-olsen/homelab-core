@@ -89,6 +89,41 @@ Use `nameOverride` in each app's values to avoid name collisions.
 {{ include "common.service" (list . .Values) }}
 ```
 
+### Standalone Redis / Valkey stores
+
+`common.standaloneStore` renders one single-replica `Recreate` Deployment and
+ClusterIP Service, separately from `common.all`:
+
+```yaml
+{{ include "common.standaloneStore" (list . .Values.redis) }}
+{{ include "common.standaloneStore" (list . .Values.valkey) }}
+```
+
+Each store has its own configuration; Redis and Valkey images are not
+interchangeable. The helper deliberately preserves explicit selectors and
+container names rather than using the application Deployment conventions.
+
+| Store value | Meaning |
+|-------------|---------|
+| `name` | Deployment and Service name; supports `{release}` |
+| `selectorLabels` | Immutable Deployment selector, pod labels, Service labels and selector; values support `{release}` |
+| `containerName` | Container name; supports `{release}` |
+| `image` | Existing `repository`, `tag` (including digest), and `pullPolicy` |
+| `commonLabels` | Add application chart labels to Deployment and Service metadata only; optional |
+| `portName`, `port` | Container TCP port name and number; the Service uses the same port name |
+| `args` | Optional server arguments, preserved as supplied; omitted when unset |
+| `resources` | Existing container resource requests and limits |
+| `livenessProbe`, `readinessProbe` | Existing Kubernetes probe definitions |
+| `service.type`, `service.port`, `service.targetPort` | Existing Service type and numeric ports |
+
+The Deployment retains `revisionHistoryLimit: 0`. The helper adds no PVC,
+volumes, authentication, environment variables, HTTP monitoring probes, or
+server persistence arguments. These stores hold real queue state: without a
+PVC, replacing a pod can lose queued work even when snapshots are enabled.
+For a configuration-only migration, compare rendered Deployment selectors and
+complete pod templates before rollout; do not treat this as a disposable-cache
+restart or a persistence migration.
+
 ## Values Reference
 
 ### Image

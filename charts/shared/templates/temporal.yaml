@@ -48,7 +48,7 @@ spec:
         # the history user must own the visibility DB. Statements are
         # idempotent — safe to re-run on every pod start.
         - name: postgres-bootstrap
-          image: postgres:18-alpine
+          image: {{ $temporal.bootstrapImage | quote }}
           env:
             - name: PGHOST
               valueFrom:

@@ -39,29 +39,7 @@
       ],
       "depNameTemplate": "gateway",
       "datasourceTemplate": "helm",
-      "registryUrlTemplate": "https://istio-release.storage.googleapis.com/charts"
-    },
-    {
-      "customType": "regex",
-      "description": "Container images with repository and tag fields",
-      "managerFilePatterns": [
-        "/charts/.+/values\\.yaml$/"
-      ],
-      "matchStrings": [
-        "repository: (?<depName>[^\\n\\s]+)\\n\\s+tag: (?<currentValue>[^\\n\\s]+)"
-      ],
-      "datasourceTemplate": "docker"
-    },
-    {
-      "customType": "regex",
-      "description": "Inline container images (image: registry/path:tag)",
-      "managerFilePatterns": [
-        "/charts/.+/values\\.yaml$/"
-      ],
-      "matchStrings": [
-        "image: (?<depName>(?:ghcr\\.io|docker\\.io|quay\\.io|registry\\.k8s\\.io)[^:\\s]+):(?<currentValue>[^\\s]+)"
-      ],
-      "datasourceTemplate": "docker"
+      "registryUrlTemplate": "https://blob.istio.io/istio-release/charts"
     }
   ],
   "packageRules": [
@@ -95,16 +73,6 @@
         "docker"
       ],
       "automerge": false
-    },
-    {
-      "description": "Weekly update schedule to avoid noise",
-      "matchDatasources": [
-        "helm",
-        "docker"
-      ],
-      "schedule": [
-        "before 9am on monday"
-      ]
     },
     {
       "description": "Replace latest tags with pinned versions",

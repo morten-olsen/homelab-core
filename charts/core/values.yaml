@@ -108,6 +108,130 @@ operators:
     values:
       installCRDs: true
 
+  # Adopt the existing Flux 2.6.4 installation without changing its controllers.
+  # Renovate updates the maintained chart, including controller images and CRDs.
+  flux:
+    enabled: true
+    version: 2.16.4
+    namespace: flux-system
+    repoURL: https://fluxcd-community.github.io/helm-charts
+    chart: flux2
+    values:
+      installCRDs: true
+      crds:
+        annotations:
+          helm.sh/resource-policy: keep
+          argocd.argoproj.io/sync-options: Prune=false,Delete=false
+      watchAllNamespaces: true
+      clusterDomain: cluster.local
+      logLevel: info
+      multitenancy:
+        enabled: false
+        privileged: true
+      policies:
+        create: true
+      rbac:
+        create: true
+        createAggregation: true
+        roleRef:
+          name: cluster-admin
+      helmController:
+        create: true
+        priorityClassName: system-cluster-critical
+        nodeSelector:
+          kubernetes.io/os: linux
+        podSecurityContext:
+          fsGroup: 1337
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 64Mi
+        container:
+          additionalArgs:
+            - --events-addr=
+        extraEnv:
+          - name: GOMAXPROCS
+            valueFrom:
+              resourceFieldRef:
+                containerName: manager
+                divisor: "0"
+                resource: limits.cpu
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                containerName: manager
+                divisor: "0"
+                resource: limits.memory
+      sourceController:
+        create: true
+        priorityClassName: system-cluster-critical
+        nodeSelector:
+          kubernetes.io/os: linux
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        container:
+          additionalArgs:
+            - --events-addr=
+        extraEnv:
+          - name: TUF_ROOT
+            value: /tmp/.sigstore
+          - name: GOMAXPROCS
+            valueFrom:
+              resourceFieldRef:
+                containerName: manager
+                divisor: "0"
+                resource: limits.cpu
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                containerName: manager
+                divisor: "0"
+                resource: limits.memory
+      kustomizeController:
+        create: false
+      notificationController:
+        create: false
+      imageAutomationController:
+        create: false
+      imageReflectionController:
+        create: false
+      # Chart 2.16.4 omits these two rules from the live Flux 2.6.4
+      # crd-controller role. Keep the active controllers' effective permissions.
+      extraObjects:
+        - apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRole
+          metadata:
+            name: flux-controller-runtime-flux-system
+          rules:
+            - apiGroups: [""]
+              resources: ["serviceaccounts/token"]
+              verbs: ["create"]
+            - nonResourceURLs: ["/livez/ping"]
+              verbs: ["head"]
+        - apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: flux-controller-runtime-flux-system
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: flux-controller-runtime-flux-system
+          subjects:
+            - kind: ServiceAccount
+              name: helm-controller
+              namespace: flux-system
+            - kind: ServiceAccount
+              name: source-controller
+              namespace: flux-system
+
   cloudnative-pg:
     enabled: true
     version: 0.29.1

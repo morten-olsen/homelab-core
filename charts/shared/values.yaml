@@ -89,6 +89,7 @@ resources:
   storageClass:
     enabled: true
     path: /var/lib/rancher/k3s/storage
+    helperImage: busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
     # General SSD, with a CI subfolder; see docs/ci-storage.md before enabling on a new host.
     ci:
       node: compute
@@ -160,6 +161,7 @@ resources:
     image:
       repository: temporalio/auto-setup
       tag: 1.29.7
+    bootstrapImage: postgres:18-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
     resources:
       requests:
         cpu: 100m

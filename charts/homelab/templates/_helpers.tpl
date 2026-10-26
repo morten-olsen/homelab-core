@@ -21,6 +21,8 @@ operators:
     enabled: {{ .Values.features.secrets }}
   falco:
     enabled: {{ .Values.features.security }}
+  flux:
+    enabled: {{ .Values.features.gitops }}
   intel-device-plugins-gpu:
     enabled: {{ .Values.features.intelGpu }}
   intel-device-plugins-operator:

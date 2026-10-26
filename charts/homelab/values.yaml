@@ -24,7 +24,7 @@ platform:
 # Each feature controls one or more operators and platform resources.
 # Disabling a feature removes its operators AND the resources that depend on them.
 features:
-  # GitOps controller — ArgoCD (required, the deployment mechanism)
+  # GitOps controllers — ArgoCD (deployment mechanism) and Flux source/Helm
   gitops: true
 
   # Service mesh and ingress — Istio (base, istiod, gateways, ingress class)
