@@ -23,8 +23,8 @@ Deploys the `authentik-operator` into the `authentik` namespace. The operator de
 Creates three resources when `resources.authentik.enabled` is `true`:
 
 1. **`PostgresDatabase` CR** (`authentik-db`) -- handled by the postgres-operator. This provisions a dedicated database for Authentik and populates a `authentik-db-connection` secret with connection details.
-2. **`AuthentikServer` CR** (`authentik`) -- references the database connection secret and configures the Authentik instance with the desired container image and public hostname.
-3. **Two Istio `VirtualService` resources** -- one for the `public` gateway and one for the `private` gateway, both routing traffic to the `authentik` service on port 9000. Authentik must be reachable from the internet so that external OIDC/OAuth2 flows (login redirects, token endpoints) work correctly.
+2. **`AuthentikServer` CR** (`authentik`) -- references the database connection secret and configures the Authentik instance with the desired container image and canonical hostname.
+3. **Private Istio `VirtualService`** (`authentik-private`) -- routes the private and mesh gateways to the `authentik` service on port 9000. The public route was removed as approved Node2Shell containment on 2026-10-26. Login redirects and browser-side OIDC/OAuth2 flows now require LAN/VPN access, including for applications whose own routes remain public.
 
 ## Database Integration
 
@@ -51,7 +51,7 @@ https://<subdomain>.<domain>
 
 With the default values (`charts/shared/values.yaml`), this resolves to `https://auth.olsen.cloud`.
 
-The subdomain is configurable via `resources.authentik.subdomain`. Traffic is routed through both the public and private Istio gateways, so Authentik is reachable from inside the cluster and from the internet.
+The subdomain is configurable via `resources.authentik.subdomain`. Traffic is routed through the private and mesh gateways only. Internet clients cannot reach Authentik directly; establish LAN/VPN access before authenticating or enrolling a new VPN client through this identity provider. This is containment, not a replacement for patching the affected native Brotli library.
 
 ## Creating OIDC Clients
 

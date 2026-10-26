@@ -41,39 +41,6 @@ spec:
 apiVersion: networking.istio.io/v1
 kind: VirtualService
 metadata:
-  name: "authentik-public"
-  namespace: "{{ .Release.Namespace }}"
-spec:
-  gateways:
-    - "{{ .Release.Namespace }}/public"
-  hosts:
-    - "{{ $auth.subdomain }}.{{ $global.domain }}"
-  http:
-    # Block admin paths on the public gateway — admin UI, admin API,
-    # and impersonation should only be reachable from LAN/VPN.
-    - match:
-        - uri:
-            prefix: /if/admin
-        - uri:
-            prefix: /administration
-        - uri:
-            prefix: /api/v3/admin
-        - uri:
-            prefix: /-/impersonation
-      directResponse:
-        status: 403
-        body:
-          string: "Forbidden"
-    - route:
-        - destination:
-            host: "authentik"
-            port:
-              number: 9000
-
----
-apiVersion: networking.istio.io/v1
-kind: VirtualService
-metadata:
   name: "authentik-private"
   namespace: "{{ .Release.Namespace }}"
 spec:
