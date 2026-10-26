@@ -20,11 +20,12 @@ Deploys the `authentik-operator` into the `authentik` namespace. The operator de
 
 ### Shared chart (`charts/shared/templates/authentik.yaml`)
 
-Creates three resources when `resources.authentik.enabled` is `true`:
+Creates four resources when `resources.authentik.enabled` is `true`:
 
 1. **`PostgresDatabase` CR** (`authentik-db`) -- handled by the postgres-operator. This provisions a dedicated database for Authentik and populates a `authentik-db-connection` secret with connection details.
 2. **`AuthentikServer` CR** (`authentik`) -- references the database connection secret and configures the Authentik instance with the desired container image and canonical hostname.
-3. **Private Istio `VirtualService`** (`authentik-private`) -- routes the private and mesh gateways to the `authentik` service on port 9000. The public route was removed as approved Node2Shell containment on 2026-10-26. Login redirects and browser-side OIDC/OAuth2 flows now require LAN/VPN access, including for applications whose own routes remain public.
+3. **Private Istio `VirtualService`** (`authentik-private`) -- routes the private and mesh gateways to the `authentik` service on port 9000.
+4. **Public bootstrap `VirtualService`** (`authentik-public`) -- preserves external IdP login/OIDC access so a new NetBird client can authenticate before joining the private network. The public prefixes `/if/admin`, `/administration`, `/api/v3/admin` and `/-/impersonation` retain their former 403 denials; these are path restrictions, not a claim of complete privileged-API isolation.
 
 ## Database Integration
 
@@ -51,7 +52,7 @@ https://<subdomain>.<domain>
 
 With the default values (`charts/shared/values.yaml`), this resolves to `https://auth.olsen.cloud`.
 
-The subdomain is configurable via `resources.authentik.subdomain`. Traffic is routed through the private and mesh gateways only. Internet clients cannot reach Authentik directly; establish LAN/VPN access before authenticating or enrolling a new VPN client through this identity provider. This is containment, not a replacement for patching the affected native Brotli library.
+The subdomain is configurable via `resources.authentik.subdomain`. Authentik is a public bootstrap exception alongside NetBird client/control and Pages (`mortenolsen.pro` and its wildcard); ordinary application routes remain private. Do not require NetBird connectivity or proxy SSO to reach the IdP that issues the initial NetBird login. This approved routing exception does not patch Authentik's known native Brotli package finding; runtime remediation remains tracked separately in Mission Control.
 
 ## Creating OIDC Clients
 
