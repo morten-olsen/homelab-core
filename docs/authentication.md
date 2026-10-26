@@ -91,7 +91,7 @@ resources:
   authentik:
     enabled: true
     subdomain: auth
-    image: ghcr.io/goauthentik/server:2026.2.1
+    image: ghcr.io/goauthentik/server:2026.8.5
     tls:
       enabled: true
       secretName: wildcard-tls
@@ -101,6 +101,23 @@ resources:
 |------------------|-------------------------------------------------------|----------------------------------------------|
 | `enabled`        | Toggle Authentik deployment                           | `true`                                       |
 | `subdomain`      | Subdomain prefix for the Authentik UI                 | `auth`                                       |
-| `image`          | Container image for the Authentik server              | `ghcr.io/goauthentik/server:2026.2.1`        |
+| `image`          | Container image for the Authentik server              | `ghcr.io/goauthentik/server:2026.8.5`        |
 | `tls.enabled`    | Enable TLS on the ingress                             | `true`                                       |
 | `tls.secretName` | Name of the TLS secret (typically a wildcard cert)    | `wildcard-tls`                               |
+
+### Image updates and decoder security
+
+The configured official image is `2026.8.5`. The upgrade from `2026.8.3` was
+preflighted by comparing all 659 upstream database migration files: no migration
+files were added, removed or changed.
+
+This application update is **not a Node2Shell / CVE-2026-111497 remediation**.
+The inspected official image still packages Debian `libbrotli1=1.1.0-2+b7`;
+the maintained Debian fix is `1.1.0-2+deb13u1`. Component presence does not prove
+that Authentik exposes the vulnerable decoder, and no vendor-backed
+non-applicability determination has been established. HOMEIT-445 remains open;
+HOMEIT-451 tracks this application update and public-bootstrap verification.
+
+The existing public login exception for NetBird bootstrap is unchanged. Keep
+the public admin/impersonation prefix denials and the private route in place;
+do not automatically expose additional applications after an image update.
