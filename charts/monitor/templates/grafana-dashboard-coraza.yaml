@@ -1,0 +1,756 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-coraza
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    grafana_dashboard: "1"
+data:
+  homelab-coraza.json: |
+    {
+      "title": "Homelab Coraza — Detection only",
+      "uid": "homelab-coraza",
+      "description": "Public-only detection-only Coraza activity, fresh inventory-backed evidence and gateway context. Not an enforcement/readiness certificate.",
+      "tags": [
+        "homelab",
+        "coraza",
+        "istio"
+      ],
+      "schemaVersion": 38,
+      "version": 1,
+      "timezone": "utc",
+      "refresh": "1m",
+      "graphTooltip": 1,
+      "time": {
+        "from": "now-24h",
+        "to": "now"
+      },
+      "editable": false,
+      "templating": {
+        "list": [
+          {
+            "name": "datasource",
+            "type": "datasource",
+            "query": "prometheus",
+            "hide": 0,
+            "refresh": 1
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "text",
+          "title": "Public gateway — watch only",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 24,
+            "h": 5
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "**DetectionOnly / FAIL_OPEN — no WAF blocking.** Public listeners **18080 / 18443 only**; private listeners excluded. This is a configuration reference, not a live mode sensor. Verified telemetry starts **2026-10-17 11:07 UTC**; earlier periods are unverified. **Normal application use has not been fully checked; blocking is not approved.**\n\n[Runtime procedure](https://code.olsen.cloud/homelab/core/src/branch/main/docs/networking.md#controlled-inspection-check) · [Sanitized review evidence](https://mission-control.olsen.cloud/home-it/tasks/4704aace-c735-4ee1-b46c-6dcb692b8f21)"
+          }
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "Public inspected transactions / sec",
+          "description": "Activity is inspection evidence. An observed zero means no inspected transactions, not filter failure. Missing data is unknown. Does not prove every pod or private exclusion. Rates can bridge gaps; this is not coverage certification.",
+          "gridPos": {
+            "x": 0,
+            "y": 5,
+            "w": 16,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(waf_filter_tx_total{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}[$__rate_interval]) and on (pod, instance) (max by (pod, instance) ((up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"} and (time() - timestamp(up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}) < 30))) == 1))",
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "editorMode": "code",
+              "instant": false,
+              "range": true,
+              "format": "time_series",
+              "legendFormat": "Inspected transactions"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "noValue": "No data / unknown",
+              "color": {
+                "mode": "palette-classic-by-name"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "spanNulls": false,
+                "fillOpacity": 7,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          }
+        },
+        {
+          "id": 9,
+          "type": "stat",
+          "title": "Pod inventory at range end",
+          "description": "A count is inventory, not protection. No data means current pod coverage unknown. Instant panels use the selected range end (normally now).",
+          "gridPos": {
+            "x": 16,
+            "y": 5,
+            "w": 8,
+            "h": 3
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "targets": [
+            {
+              "expr": "(count(max by (pod, instance) (label_replace((kube_pod_info{namespace=\"istio-ingress\",pod=~\"gateway-.*\"} and (time() - timestamp(kube_pod_info{namespace=\"istio-ingress\",pod=~\"gateway-.*\"}) < 90)) and on (job, instance) (up{job=\"kube-state-metrics\"} == 1), \"instance\", \"$1:15020\", \"pod_ip\", \"(.+)\"))) or vector(0)) and on () (max(up{job=\"kube-state-metrics\"} and (time() - timestamp(up{job=\"kube-state-metrics\"}) < 90)) == 1) and on () (count(kube_pod_info{job=\"kube-state-metrics\"} and (time() - timestamp(kube_pod_info{job=\"kube-state-metrics\"}) < 90)) > 0)",
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "editorMode": "code",
+              "instant": true,
+              "range": false,
+              "format": "time_series"
+            }
+          ],
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "last"
+              ],
+              "values": false
+            }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "noValue": "Inventory unknown",
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "blue"
+              },
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "No gateway pods",
+                      "color": "red"
+                    }
+                  }
+                },
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "Unknown",
+                      "color": "orange"
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 10,
+          "type": "text",
+          "title": "How to read the snapshot",
+          "gridPos": {
+            "x": 16,
+            "y": 8,
+            "w": 8,
+            "h": 5
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "**Scrape up** confirms collection; cache/fetch only confirm initialization. Counts are since **proxy start**. Unlisted results are **not proven zero errors**. No rows means **pod coverage unknown**."
+          }
+        },
+        {
+          "id": 3,
+          "type": "table",
+          "title": "Gateway telemetry — snapshot at range end",
+          "description": "Inventory-backed, fresh instant values at selected range end (normally now). A down/missing scrape makes module and transaction evidence Unknown. Successful scrape with absent metric is Missing / Not observed. Current IP must match; departed pods stay out. Horizontal scrolling preserves readable columns.",
+          "gridPos": {
+            "x": 0,
+            "y": 13,
+            "w": 24,
+            "h": 6
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "targets": [
+            {
+              "expr": "max by (pod, check) (((label_replace((max by (pod, instance) ((up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"} and (time() - timestamp(up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}) < 30))) or on (pod, instance) (max by (pod, instance) (label_replace((kube_pod_info{namespace=\"istio-ingress\",pod=~\"gateway-.*\"} and (time() - timestamp(kube_pod_info{namespace=\"istio-ingress\",pod=~\"gateway-.*\"}) < 90)) and on (job, instance) (up{job=\"kube-state-metrics\"} == 1), \"instance\", \"$1:15020\", \"pod_ip\", \"(.+)\")) * (0/0))), \"check\", \"Scrape\", \"pod\", \".*\")) or (label_replace((((((max by (pod, instance) ((waf_filter_tx_total{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"} and (time() - timestamp(waf_filter_tx_total{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}) < 30))) >= bool 0)) or on (pod, instance) ((max by (pod, instance) ((up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"} and (time() - timestamp(up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}) < 30))) == 1) * 0)) and on (pod, instance) (max by (pod, instance) ((up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"} and (time() - timestamp(up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}) < 30))) == 1)) or on (pod, instance) (max by (pod, instance) (label_replace((kube_pod_info{namespace=\"istio-ingress\",pod=~\"gateway-.*\"} and (time() - timestamp(kube_pod_info{namespace=\"istio-ingress\",pod=~\"gateway-.*\"}) < 90)) and on (job, instance) (up{job=\"kube-state-metrics\"} == 1), \"instance\", \"$1:15020\", \"pod_ip\", \"(.+)\")) * (0/0))), \"check\", \"Transactions\", \"pod\", \".*\")) or (label_replace(((((max by (pod, instance) ((istio_agent_wasm_cache_entries{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"} and (time() - timestamp(istio_agent_wasm_cache_entries{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}) < 30)))) or on (pod, instance) ((max by (pod, instance) ((up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"} and (time() - timestamp(up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}) < 30))) == 1) * -1)) and on (pod, instance) (max by (pod, instance) ((up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"} and (time() - timestamp(up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}) < 30))) == 1)) or on (pod, instance) (max by (pod, instance) (label_replace((kube_pod_info{namespace=\"istio-ingress\",pod=~\"gateway-.*\"} and (time() - timestamp(kube_pod_info{namespace=\"istio-ingress\",pod=~\"gateway-.*\"}) < 90)) and on (job, instance) (up{job=\"kube-state-metrics\"} == 1), \"instance\", \"$1:15020\", \"pod_ip\", \"(.+)\")) * (0/0))), \"check\", \"Cache entries\", \"pod\", \".*\")) or (label_replace(((((max by (pod, instance) ((istio_agent_wasm_remote_fetch_count{job=\"monitoring/istio-gateway\",instance=~\".*:15020\",result=\"success\"} and (time() - timestamp(istio_agent_wasm_remote_fetch_count{job=\"monitoring/istio-gateway\",instance=~\".*:15020\",result=\"success\"}) < 30)))) or on (pod, instance) ((max by (pod, instance) ((up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"} and (time() - timestamp(up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}) < 30))) == 1) * -1)) and on (pod, instance) (max by (pod, instance) ((up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"} and (time() - timestamp(up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}) < 30))) == 1)) or on (pod, instance) (max by (pod, instance) (label_replace((kube_pod_info{namespace=\"istio-ingress\",pod=~\"gateway-.*\"} and (time() - timestamp(kube_pod_info{namespace=\"istio-ingress\",pod=~\"gateway-.*\"}) < 90)) and on (job, instance) (up{job=\"kube-state-metrics\"} == 1), \"instance\", \"$1:15020\", \"pod_ip\", \"(.+)\")) * (0/0))), \"check\", \"Fetch success (proxy start)\", \"pod\", \".*\")) or (label_replace(((((max by (pod, instance) ((istio_agent_wasm_config_conversion_count{job=\"monitoring/istio-gateway\",instance=~\".*:15020\",result=\"success\"} and (time() - timestamp(istio_agent_wasm_config_conversion_count{job=\"monitoring/istio-gateway\",instance=~\".*:15020\",result=\"success\"}) < 30)))) or on (pod, instance) ((max by (pod, instance) ((up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"} and (time() - timestamp(up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}) < 30))) == 1) * -1)) and on (pod, instance) (max by (pod, instance) ((up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"} and (time() - timestamp(up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}) < 30))) == 1)) or on (pod, instance) (max by (pod, instance) (label_replace((kube_pod_info{namespace=\"istio-ingress\",pod=~\"gateway-.*\"} and (time() - timestamp(kube_pod_info{namespace=\"istio-ingress\",pod=~\"gateway-.*\"}) < 90)) and on (job, instance) (up{job=\"kube-state-metrics\"} == 1), \"instance\", \"$1:15020\", \"pod_ip\", \"(.+)\")) * (0/0))), \"check\", \"Convert success (proxy start)\", \"pod\", \".*\")) or (label_replace((max by (pod, instance, result) ((istio_agent_wasm_remote_fetch_count{job=\"monitoring/istio-gateway\",instance=~\".*:15020\",result!=\"success\"} and (time() - timestamp(istio_agent_wasm_remote_fetch_count{job=\"monitoring/istio-gateway\",instance=~\".*:15020\",result!=\"success\"}) < 30))) and on (pod, instance) (max by (pod, instance) ((up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"} and (time() - timestamp(up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}) < 30))) == 1)), \"check\", \"Fetch issue: $1\", \"result\", \"(.+)\")) or (label_replace((max by (pod, instance, result) ((istio_agent_wasm_config_conversion_count{job=\"monitoring/istio-gateway\",instance=~\".*:15020\",result!=\"success\"} and (time() - timestamp(istio_agent_wasm_config_conversion_count{job=\"monitoring/istio-gateway\",instance=~\".*:15020\",result!=\"success\"}) < 30))) and on (pod, instance) (max by (pod, instance) ((up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"} and (time() - timestamp(up{job=\"monitoring/istio-gateway\",instance=~\".*:15020\"}) < 30))) == 1)), \"check\", \"Convert issue: $1\", \"result\", \"(.+)\"))) and on (pod, instance) (max by (pod, instance) (label_replace((kube_pod_info{namespace=\"istio-ingress\",pod=~\"gateway-.*\"} and (time() - timestamp(kube_pod_info{namespace=\"istio-ingress\",pod=~\"gateway-.*\"}) < 90)) and on (job, instance) (up{job=\"kube-state-metrics\"} == 1), \"instance\", \"$1:15020\", \"pod_ip\", \"(.+)\"))))",
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "editorMode": "code",
+              "instant": true,
+              "range": false,
+              "format": "table"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "groupingToMatrix",
+              "options": {
+                "columnField": "check",
+                "rowField": "pod",
+                "valueField": "Value"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "pod\\check": "Pod",
+                  "Fetch success (proxy start)": "Fetch success",
+                  "Convert success (proxy start)": "Convert success"
+                },
+                "indexByName": {
+                  "pod\\check": 0,
+                  "Scrape": 1,
+                  "Transactions": 2,
+                  "Cache entries": 3,
+                  "Fetch success (proxy start)": 4,
+                  "Convert success (proxy start)": 5
+                }
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "noValue": "Unknown",
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "blue"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "color-text"
+                },
+                "inspect": false,
+                "minWidth": 130
+              },
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "-1": {
+                      "text": "Not observed",
+                      "color": "orange"
+                    }
+                  }
+                },
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "Unknown",
+                      "color": "orange"
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Scrape"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "0": {
+                            "text": "Scrape down",
+                            "color": "red"
+                          },
+                          "1": {
+                            "text": "Scrape up",
+                            "color": "blue"
+                          }
+                        }
+                      },
+                      {
+                        "type": "special",
+                        "options": {
+                          "match": "null+nan",
+                          "result": {
+                            "text": "Unknown",
+                            "color": "orange"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-text"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Transactions"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "0": {
+                            "text": "Missing",
+                            "color": "orange"
+                          },
+                          "1": {
+                            "text": "Present",
+                            "color": "blue"
+                          }
+                        }
+                      },
+                      {
+                        "type": "special",
+                        "options": {
+                          "match": "null+nan",
+                          "result": {
+                            "text": "Unknown",
+                            "color": "orange"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-text"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pod\\check"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "auto"
+                    }
+                  },
+                  {
+                    "id": "displayName",
+                    "value": "Pod"
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 240
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "^(Fetch|Convert) issue:.*"
+                },
+                "properties": [
+                  {
+                    "id": "custom.align",
+                    "value": "left"
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 240
+                  },
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "special",
+                        "options": {
+                          "match": "null+nan",
+                          "result": {
+                            "text": "Unknown",
+                            "color": "orange"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "thresholds"
+                    }
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "orange",
+                          "value": null
+                        },
+                        {
+                          "color": "blue",
+                          "value": 0
+                        },
+                        {
+                          "color": "red",
+                          "value": 1
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-text"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "sortBy": [
+              {
+                "displayName": "Pod",
+                "desc": false
+              }
+            ]
+          }
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Gateway proxy RSS — per pod",
+          "description": "Historical graph retains departed pods. Pod replacement can hide memory drift. A short observation does not establish memory stability. Gaps are not connected.",
+          "gridPos": {
+            "x": 0,
+            "y": 19,
+            "w": 16,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "targets": [
+            {
+              "expr": "max by (pod) (container_memory_rss{namespace=\"istio-ingress\",container=\"istio-proxy\",pod=~\"gateway-.*\"})",
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "editorMode": "code",
+              "instant": false,
+              "range": true,
+              "format": "time_series",
+              "legendFormat": "{{ "{{" }}pod{{ "}}" }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "noValue": "No data / unknown",
+              "color": {
+                "mode": "palette-classic-by-name"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "spanNulls": false,
+                "fillOpacity": 7,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          }
+        },
+        {
+          "id": 5,
+          "type": "stat",
+          "title": "Proxy restarts in range",
+          "description": "Counter-reset-aware increase per pod; departed pod history is retained. Does not attribute restarts to the WAF. Missing samples are not zero.",
+          "gridPos": {
+            "x": 16,
+            "y": 19,
+            "w": 8,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "targets": [
+            {
+              "expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"istio-ingress\",container=\"istio-proxy\",pod=~\"gateway-.*\"}[$__range]))",
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "editorMode": "code",
+              "instant": true,
+              "range": false,
+              "format": "time_series",
+              "legendFormat": "{{ "{{" }}pod{{ "}}" }}"
+            }
+          ],
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "last"
+              ],
+              "values": true
+            },
+            "textMode": "value_and_name",
+            "text": {
+              "valueSize": 48,
+              "titleSize": 12
+            }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 1,
+              "noValue": "Unknown",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "Unknown",
+                      "color": "orange"
+                    }
+                  }
+                }
+              ],
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "blue"
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "Gateway-wide request latency — p50 / p99",
+          "description": "Includes public/private traffic and long-lived HTTP101/gRPC connections. Not WAF overhead or a public-only SLO. Quantiles can be capped at the highest finite bucket; absent/insufficient samples remain No data.",
+          "gridPos": {
+            "x": 0,
+            "y": 27,
+            "w": 12,
+            "h": 7
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.5, sum by (le) (rate(istio_request_duration_milliseconds_bucket{job=\"monitoring/istio-gateway\",instance=~\".*:15020\",source_workload=\"gateway\"}[$__rate_interval])))",
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "editorMode": "code",
+              "instant": false,
+              "range": true,
+              "format": "time_series",
+              "legendFormat": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(istio_request_duration_milliseconds_bucket{job=\"monitoring/istio-gateway\",instance=~\".*:15020\",source_workload=\"gateway\"}[$__rate_interval])))",
+              "refId": "B",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "editorMode": "code",
+              "instant": false,
+              "range": true,
+              "format": "time_series",
+              "legendFormat": "p99"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "noValue": "No data / unknown",
+              "color": {
+                "mode": "palette-classic-by-name"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "spanNulls": false,
+                "fillOpacity": 7,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          }
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "Gateway proxy CPU — per pod",
+          "description": "CPU cores from reset-aware rates. Retains departed pod history. Startup/peak/backlog capacity and WAF overhead are not established by these rates.",
+          "gridPos": {
+            "x": 12,
+            "y": 27,
+            "w": 12,
+            "h": 7
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "targets": [
+            {
+              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"istio-ingress\",container=\"istio-proxy\",pod=~\"gateway-.*\"}[$__rate_interval]))",
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "editorMode": "code",
+              "instant": false,
+              "range": true,
+              "format": "time_series",
+              "legendFormat": "{{ "{{" }}pod{{ "}}" }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cores",
+              "noValue": "No data / unknown",
+              "color": {
+                "mode": "palette-classic-by-name"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "spanNulls": false,
+                "fillOpacity": 7,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          }
+        },
+        {
+          "id": 8,
+          "type": "text",
+          "title": "Detection detail — not available in retained metrics",
+          "gridPos": {
+            "x": 0,
+            "y": 34,
+            "w": 24,
+            "h": 6
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "Rule-hit rate, top noisy rules, anomaly scores and would-block counts are unavailable from retained Coraza 0.6.0 metrics. Actual interruptions do not measure would-block in DetectionOnly. Review sanitized aggregate rule counts in the task/runbook.\n\n**An open monitoring issue remains:** some gRPC message counts contain conflicting samples and are excluded here. The monitoring-day pass does not resolve that issue or prove application safety.\n\n[Runtime procedure](https://code.olsen.cloud/homelab/core/src/branch/main/docs/networking.md#controlled-inspection-check) · [Sanitized review evidence](https://mission-control.olsen.cloud/home-it/tasks/4704aace-c735-4ee1-b46c-6dcb692b8f21)"
+          }
+        }
+      ]
+    }
