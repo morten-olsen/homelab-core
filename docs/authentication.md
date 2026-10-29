@@ -18,6 +18,7 @@ Deploys the `authentik-operator` into the `authentik` namespace. The operator de
 - `AuthentikServer` -- represents an Authentik instance.
 - `AuthentikClient` -- represents an OIDC/OAuth2 client registration.
 - `AuthentikGroup` -- owns a GitOps access group and its complete membership list.
+- `AuthentikProxyProvider` -- a forward-auth proxy provider served by the embedded outpost (operator 0.3.0).
 
 ### Shared chart (`charts/shared/templates/authentik.yaml`)
 
@@ -168,3 +169,25 @@ stages with new authorization attempts per application. Publishing core also
 publishes common 0.2.0, core 0.1.10 and shared 0.1.28 through the existing Pages
 workflow; obtain release approval before that merge. See HOMEIT-474 and the base
 runbook `docs/authentik-group-cutover.md` for the inventory and verification plan.
+
+## Forward auth for applications without OIDC
+
+Operator 0.3.0 adds `AuthentikProxyProvider` (see the operator's ADR 0002) and
+the core chart registers an Istio extension provider named `authentik` in the
+istiod mesh config. It sends ext_authz checks to the embedded outpost at
+`authentik.shared.svc.cluster.local:9000/outpost.goauthentik.io/auth/envoy`. The
+provider does nothing until a `CUSTOM` AuthorizationPolicy names it.
+
+Applications opt in through `forwardAuth` in homelab-common 0.3.0, which renders
+the proxy provider, the app's access group, a `CUSTOM` policy on the app's own
+pods and the `/outpost.goauthentik.io/` callback route. Group restriction is
+enforced by Authentik's application bindings, exactly as for OIDC clients;
+Istio never inspects claims. Paths listed in `forwardAuth.excludePaths` skip the
+check entirely, so API-key-protected APIs keep working without a session and
+without depending on Authentik. If Authentik is down, protected UIs fail closed.
+
+The operator attaches only its own providers to the shared embedded outpost and
+sets the outpost's `authentik_host` to `https://auth.olsen.cloud`. Removing a user
+from a group blocks new logins; live outpost sessions last until
+`accessTokenValidity` (default `hours=8`). Roll back an application by disabling
+`forwardAuth`; the policy, route and provider are removed together.

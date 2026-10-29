@@ -492,6 +492,24 @@ operators:
             ISTIO_META_DNS_CAPTURE: "true"
             # DNS auto allocate - automatically assign virtual IPs for ServiceEntry hosts
             ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        # Authentik forward auth for apps without OIDC. Inert until a CUSTOM
+        # AuthorizationPolicy names it (homelab-common forwardAuth). The
+        # embedded outpost runs inside the Authentik server. Settings follow
+        # https://docs.goauthentik.io/add-secure-apps/providers/proxy/server_envoy
+        extensionProviders:
+          - name: authentik
+            envoyExtAuthzHttp:
+              service: authentik.shared.svc.cluster.local
+              port: 9000
+              pathPrefix: /outpost.goauthentik.io/auth/envoy
+              headersToDownstreamOnAllow:
+                - cookie
+              headersToUpstreamOnAllow:
+                - set-cookie
+                - x-authentik-*
+              includeRequestHeadersInCheck:
+                - cookie
+                - x-forwarded-proto
       global:
         proxy:
           # Sidecar and istio-init requests. The chart default of 100m reserved 7.1 of

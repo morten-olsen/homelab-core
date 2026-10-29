@@ -287,6 +287,37 @@ oidc:
 
 Creates an AuthentikClient CR. The operator provisions a secret `{release}-oidc-credentials` with keys: `clientId`, `clientSecret`, `issuer`.
 
+### Forward auth (Authentik in front of apps without OIDC)
+
+```yaml
+forwardAuth:
+  enabled: true
+  excludePaths:                    # never sent to Authentik (APIs, health)
+    - /api/*
+    - /ping
+  accessTokenValidity: hours=8     # outpost session lifetime
+  group:                           # app group members (ignored when oidc owns the group)
+    members: []
+  allowedGroups:
+    - name: admin
+      namespace: shared
+probe:
+  path: /ping                      # must be an excluded path
+```
+
+Renders an `AuthentikProxyProvider` (`{release}-forward-auth`, operator 0.3.0),
+the app's `AuthentikGroup` (unless `oidc.enabled` already renders it), an Istio
+`CUSTOM` AuthorizationPolicy on the app's own pods, and an
+`/outpost.goauthentik.io/` route in its VirtualServices for the login callback.
+The policy uses the `authentik` extension provider from the core chart's mesh
+config. Every request to the pods except `excludePaths` must pass Authentik,
+whichever way it arrives (gateway, mesh hostname or `*.svc`). In-cluster
+callers therefore need excluded paths too. Access is granted by Authentik's
+application bindings (the app group plus `allowedGroups`); an empty app group
+grants nobody unless another group matches. Rendering fails when the
+blackbox probe would hit a protected path. Excluded paths must still be
+protected by the app itself (for example an API key).
+
 ### Database
 
 ```yaml

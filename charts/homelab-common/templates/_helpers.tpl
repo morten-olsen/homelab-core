@@ -556,6 +556,7 @@ spec:
     {{- end }}
     - mesh
   http:
+    {{- include "common.forwardAuthRoute" . | nindent 4 }}
     - route:
         - destination:
             host: {{ include "common.fullname" . }}
@@ -589,6 +590,7 @@ spec:
     {{- end }}
     - mesh
   http:
+    {{- include "common.forwardAuthRoute" . | nindent 4 }}
     - route:
         - destination:
             host: {{ include "common.fullname" . }}
@@ -618,7 +620,8 @@ spec:
 replace the app's own group. These helpers also support custom OIDC clients. */}}
 {{- define "common._oidcGroup" -}}
 {{- $oidc := default dict .Values.oidc -}}
-{{- $group := default dict $oidc.group -}}
+{{- $forwardAuth := default dict .Values.forwardAuth -}}
+{{- $group := default dict (ternary $oidc.group $forwardAuth.group (and (hasKey $oidc "enabled") $oidc.enabled)) -}}
 ---
 apiVersion: authentik.homelab.mortenolsen.pro/v1alpha1
 kind: AuthentikGroup
@@ -852,6 +855,92 @@ spec:
 ===========================================================================
 */}}
 
+{{/* Forward auth: Istio ext_authz on the workload sidecar asks Authentik's
+embedded outpost (AuthentikProxyProvider, operator 0.3.0) before a request
+reaches the app. Paths in forwardAuth.excludePaths are never sent to Authentik.
+Requires the "authentik" extension provider in the mesh config (core chart). */}}
+{{- define "common.forwardAuthEnabled" -}}
+{{- if and .Values.forwardAuth .Values.forwardAuth.enabled .Values.subdomain (hasKey .Values.globals "authentik") (hasKey .Values.globals.authentik "ref") (hasKey .Values.globals.authentik.ref "name") (hasKey .Values.globals.authentik.ref "namespace") (ne .Values.globals.authentik.ref.name "") (ne .Values.globals.authentik.ref.namespace "") -}}
+true
+{{- end -}}
+{{- end }}
+
+{{- define "common.forwardAuthRoute" -}}
+{{- if include "common.forwardAuthEnabled" . }}
+- name: authentik-outpost
+  match:
+    - uri:
+        prefix: /outpost.goauthentik.io/
+  route:
+    - destination:
+        host: {{ printf "%s.%s.svc.cluster.local" .Values.globals.authentik.ref.name .Values.globals.authentik.ref.namespace }}
+        port:
+          number: 9000
+{{- end }}
+{{- end }}
+
+{{- define "common._forwardAuth" -}}
+{{- if include "common.forwardAuthEnabled" . }}
+{{- $fa := .Values.forwardAuth -}}
+{{- $oidc := default dict .Values.oidc -}}
+{{- $probeEnabled := true }}
+{{- if and .Values.probe (hasKey .Values.probe "enabled") }}
+{{- $probeEnabled = .Values.probe.enabled }}
+{{- end }}
+{{- if and .Values.service $probeEnabled (not (and .Values.probe .Values.probe.path)) }}
+{{- fail "forwardAuth requires probe.path set to a path listed in forwardAuth.excludePaths (or probe.enabled: false); otherwise the probe only sees the login redirect" }}
+{{- end }}
+{{- if not (and (hasKey $oidc "enabled") $oidc.enabled) }}
+{{ include "common._oidcGroup" . }}
+{{- end }}
+---
+apiVersion: authentik.homelab.mortenolsen.pro/v1alpha1
+kind: AuthentikProxyProvider
+metadata:
+  name: {{ include "common.fullname" . }}-forward-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "common.labels" . | nindent 4 }}
+spec:
+  serverRef:
+    name: {{ .Values.globals.authentik.ref.name }}
+    namespace: {{ .Values.globals.authentik.ref.namespace }}
+  name: {{ include "common.fullname" . }}
+  externalHost: {{ printf "https://%s" (include "common.domain" .) | quote }}
+  accessTokenValidity: {{ $fa.accessTokenValidity | default "hours=8" | quote }}
+  allowedGroups:
+    {{- $own := dict "name" (include "common.fullname" .) "namespace" .Release.Namespace }}
+    {{- range uniq (concat (list $own) (default list $fa.allowedGroups)) }}
+    - name: {{ required "allowedGroups entries require a name" .name | quote }}
+      namespace: {{ required "allowedGroups entries require a namespace" .namespace | quote }}
+    {{- end }}
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ include "common.fullname" . }}-forward-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "common.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "common.selectorLabels" . | nindent 6 }}
+  action: CUSTOM
+  provider:
+    name: {{ $fa.provider | default "authentik" }}
+  rules:
+    {{- if $fa.excludePaths }}
+    - to:
+        - operation:
+            notPaths:
+              {{- toYaml $fa.excludePaths | nindent 14 }}
+    {{- else }}
+    - {}
+    {{- end }}
+{{- end }}
+{{- end }}
+
 {{- define "common.all" -}}
 {{- $root := index . 0 -}}
 {{- $app := index . 1 -}}
@@ -863,6 +952,7 @@ spec:
 {{- include "common._pvc" $ctx }}
 {{- include "common._virtualService" $ctx }}
 {{- include "common._oidc" $ctx }}
+{{- include "common._forwardAuth" $ctx }}
 {{- include "common._database" $ctx }}
 {{- include "common._externalSecrets" $ctx }}
 {{- include "common._probe" $ctx }}
@@ -892,6 +982,10 @@ spec:
 {{/* common.serviceEntry removed — handled by Kyverno */}}
 
 {{/* common.dns removed — handled by Kyverno */}}
+
+{{- define "common.forwardAuth" -}}
+{{- include "common._render" (list "common._forwardAuth" (index . 0) (index . 1)) -}}
+{{- end }}
 
 {{- define "common.oidc" -}}
 {{- include "common._render" (list "common._oidc" (index . 0) (index . 1)) -}}
