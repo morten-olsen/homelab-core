@@ -12,6 +12,7 @@ if [ -z "${PROMTOOL:-}" ]; then
   export PROMTOOL="$tmp/promtool"
 fi
 helm lint "$root/charts/core" "$root/charts/shared" "$root/charts/monitor"
+"$root/charts/homelab-common/tests/render.sh"
 "$root/charts/core/tests/render.sh"
 "$root/charts/shared/tests/render.sh"
 "$root/charts/monitor/tests/render.sh"

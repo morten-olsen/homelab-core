@@ -614,8 +614,40 @@ spec:
      VirtualServices targeting the private gateway. See shared chart
      mesh-policies.yaml for the ClusterPolicy. */}}
 
+{{/* One resource owns each group and its entire membership. Extra grants never
+replace the app's own group. These helpers also support custom OIDC clients. */}}
+{{- define "common._oidcGroup" -}}
+{{- $oidc := default dict .Values.oidc -}}
+{{- $group := default dict $oidc.group -}}
+---
+apiVersion: authentik.homelab.mortenolsen.pro/v1alpha1
+kind: AuthentikGroup
+metadata:
+  name: {{ include "common.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    {{- include "common.labels" . | nindent 4 }}
+spec:
+  serverRef:
+    name: {{ .Values.globals.authentik.ref.name }}
+    namespace: {{ .Values.globals.authentik.ref.namespace }}
+  members: {{ toJson (default list $group.members) }}
+{{- end }}
+
+{{- define "common._allowedGroups" -}}
+{{- $oidc := default dict .Values.oidc -}}
+{{- $own := dict "name" (include "common.fullname" .) "namespace" .Release.Namespace -}}
+{{- range uniq (concat (list $own) (default list $oidc.allowedGroups)) }}
+- name: {{ required "allowedGroups entries require a name" .name | quote }}
+  namespace: {{ required "allowedGroups entries require a namespace" .namespace | quote }}
+{{- end }}
+{{- end }}
+
 {{- define "common._oidc" -}}
 {{- if and .Values.oidc .Values.oidc.enabled (hasKey .Values.globals "authentik") (hasKey .Values.globals.authentik "ref") (hasKey .Values.globals.authentik.ref "name") (hasKey .Values.globals.authentik.ref "namespace") (ne .Values.globals.authentik.ref.name "") (ne .Values.globals.authentik.ref.namespace "") }}
+{{ include "common._oidcGroup" . }}
 ---
 apiVersion: authentik.homelab.mortenolsen.pro/v1alpha1
 kind: AuthentikClient
@@ -629,6 +661,12 @@ spec:
     name: {{ .Values.globals.authentik.ref.name }}
     namespace: {{ .Values.globals.authentik.ref.namespace }}
   name: {{ include "common.fullname" . }}
+  allowedGroups:
+    {{- include "common._allowedGroups" . | nindent 4 }}
+  {{- with .Values.oidc.replacesBindings }}
+  replacesBindings:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   redirectUris:
     {{- range .Values.oidc.redirectUris }}
     - {{ printf "https://%s%s" (include "common.domain" $) . | quote }}
@@ -967,4 +1005,12 @@ spec:
       name: {{ $store.portName }}
   selector:
     {{- $selectorLabels | nindent 4 }}
+{{- end }}
+
+{{- define "common.oidcGroup" -}}
+{{- include "common._render" (list "common._oidcGroup" (index . 0) (index . 1)) -}}
+{{- end }}
+
+{{- define "common.allowedGroups" -}}
+{{- include "common._render" (list "common._allowedGroups" (index . 0) (index . 1)) -}}
 {{- end }}

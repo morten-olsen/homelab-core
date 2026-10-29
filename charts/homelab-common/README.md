@@ -446,3 +446,42 @@ For use in custom templates (receive the standard Helm context, not the scoped l
 | OIDC | `{release}-oidc-credentials` | `clientId`, `clientSecret`, `issuer` |
 | Database | `{release}-connection` | `url`, `host`, `port`, `database`, `user`, `password` |
 | External Secrets | configurable | configurable via `secretKeys` |
+
+## GitOps application access (0.2.0)
+
+OIDC creates an `AuthentikGroup` with the same namespace and name as the
+`AuthentikClient`. The group resource is the only owner of its complete direct
+membership. Grant app access through `oidc.group.members`; add existing central
+`AuthentikGroup` references through `oidc.allowedGroups`. Additional grants always
+extend the application's own group, including when explicitly set to `[]`.
+
+```yaml
+oidc:
+  enabled: true
+  redirectUris: [/callback]
+  group:
+    members:
+      - id: 123
+        uuid: 11111111-2222-4333-8444-555555555555
+  allowedGroups:
+    - name: admin
+      namespace: shared
+```
+
+User references pin existing Authentik IDs and UUIDs; the operator never creates
+users or superuser privileges. The backing group name is
+`gitops/<namespace>/<resource-name>`, preventing accidental adoption of an
+existing group named `admin`. Define central groups in
+`resources.authentik.groups` in the shared chart. Never create a second group
+resource to control a chart-generated group's membership.
+
+Requires Authentik operator 0.2.0 and its CRDs **before** updating consumers.
+Missing/unready groups close managed applications. An empty app group grants
+nobody access unless an additional group matches. For an inventoried legacy
+application binding that must be replaced, set its UUID in
+`oidc.replacesBindings`; an unapproved binding blocks cutover with access closed.
+Custom clients can call `common.oidcGroup` and `common.allowedGroups` using the
+same scoped values. `common.oidcGroup` is unconditional; callers decide whether
+their custom OIDC enrollment is enabled.
+
+Run `charts/homelab-common/tests/render.sh` for the library's rendering tests.
