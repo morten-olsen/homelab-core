@@ -1,0 +1,15 @@
+{{- if .Values.resources.authentik.enabled }}
+{{- range $name, $group := .Values.resources.authentik.groups }}
+---
+apiVersion: authentik.homelab.mortenolsen.pro/v1alpha1
+kind: AuthentikGroup
+metadata:
+  name: {{ $name | quote }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  serverRef:
+    name: authentik
+    namespace: {{ $.Release.Namespace }}
+  members: {{ toJson (default list $group.members) }}
+{{- end }}
+{{- end }}

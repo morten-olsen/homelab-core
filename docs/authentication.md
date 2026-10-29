@@ -121,3 +121,45 @@ HOMEIT-451 tracks this application update and public-bootstrap verification.
 The existing public login exception for NetBird bootstrap is unchanged. Keep
 the public admin/impersonation prefix denials and the private route in place;
 do not automatically expose additional applications after an image update.
+
+## GitOps groups and application access
+
+Authentik operator 0.2.0 adds namespaced `AuthentikGroup` resources and
+`AuthentikClient.allowedGroups`. The common library 0.2.0 creates an application
+group and always includes it in the client's allowed groups. Additional
+`oidc.allowedGroups` references extend it. Put the complete app membership list
+in `oidc.group.members`; there is no second membership resource or UI-owned list.
+
+Central groups are declared under `resources.authentik.groups` in the shared
+chart. `shared/admin` initially contains the existing `morten` user pinned by
+numeric ID and immutable UUID. Its backing group is `gitops/shared/admin`, with
+`is_superuser=false`, no roles and no parent groups. This group controls access
+to applications only. The pre-existing Authentik groups named `admin` and
+`authentik Admins` remain unmanaged and unchanged. Application administrator
+privileges remain each application's own configuration.
+
+Managed backing groups carry the originating Kubernetes UID. Same-name groups
+without that marker are conflicts, including after a CR is deleted/recreated.
+Users are referenced by ID and UUID, not mutable names or email addresses. No
+users, invitations, passwords or superuser privileges are provisioned. UI edits
+to managed membership/privilege fields are drift. Deleting a managed group
+revokes its direct membership and retains its Authentik identity; it never
+implicitly deletes pre-existing identity data. An undeclared child group closes
+referencing applications until the hierarchy conflict is resolved.
+
+New clients require resolved allowed groups before provider attachment. Migrating
+clients replaces only an inventoried binding set, under a constant-false guard
+and ALL mode, then verifies exact ANY group bindings. Empty/missing groups and
+partial failures close managed applications. Legacy clients without an explicit
+list retain their previous access solely during staged migration; once managed,
+omitting or emptying the list denies access. A failed/unreachable API cannot
+promise immediate revocation: inspect live bindings/provider attachment and
+conditions. Group changes trigger referencing clients; periodic reconciliation
+repairs drift. Existing app sessions and issued tokens have separate lifetimes.
+
+Merge order: publish approved operator 0.2.0, merge this core upgrade and establish
+`shared/admin`, then migrate application chart dependencies and grants in agreed
+stages with new authorization attempts per application. Publishing core also
+publishes common 0.2.0, core 0.1.10 and shared 0.1.28 through the existing Pages
+workflow; obtain release approval before that merge. See HOMEIT-474 and the base
+runbook `docs/authentik-group-cutover.md` for the inventory and verification plan.
