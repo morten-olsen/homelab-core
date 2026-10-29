@@ -301,6 +301,8 @@ forwardAuth:
   allowedGroups:
     - name: admin
       namespace: shared
+  # selector: {app: my-app}        # pod labels, when not the library's own labels
+  # exemptSourceNamespaces: [ns]   # callers from these namespaces skip the check
 probe:
   path: /ping                      # must be an excluded path
 ```
@@ -312,7 +314,10 @@ the app's `AuthentikGroup` (unless `oidc.enabled` already renders it), an Istio
 The policy uses the `authentik` extension provider from the core chart's mesh
 config. Every request to the pods except `excludePaths` must pass Authentik,
 whichever way it arrives (gateway, mesh hostname or `*.svc`). In-cluster
-callers therefore need excluded paths too. Access is granted by Authentik's
+callers therefore need excluded paths, or their namespace listed in
+`exemptSourceNamespaces` (identity comes from mesh mTLS; traffic through a
+gateway carries the gateway's identity and is still checked). Charts with
+their own pod labels must set `selector`, or the policy selects nothing. Access is granted by Authentik's
 application bindings (the app group plus `allowedGroups`); an empty app group
 grants nobody unless another group matches. Rendering fails when the
 blackbox probe would hit a protected path. Excluded paths must still be

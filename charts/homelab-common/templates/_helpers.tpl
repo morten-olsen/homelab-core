@@ -925,16 +925,28 @@ metadata:
 spec:
   selector:
     matchLabels:
+      {{- if $fa.selector }}
+      {{- toYaml $fa.selector | nindent 6 }}
+      {{- else }}
       {{- include "common.selectorLabels" . | nindent 6 }}
+      {{- end }}
   action: CUSTOM
   provider:
     name: {{ $fa.provider | default "authentik" }}
   rules:
-    {{- if $fa.excludePaths }}
-    - to:
+    {{- if or $fa.excludePaths $fa.exemptSourceNamespaces }}
+    - {{- if $fa.exemptSourceNamespaces }}
+      from:
+        - source:
+            notNamespaces:
+              {{- toYaml $fa.exemptSourceNamespaces | nindent 14 }}
+      {{- end }}
+      {{- if $fa.excludePaths }}
+      to:
         - operation:
             notPaths:
               {{- toYaml $fa.excludePaths | nindent 14 }}
+      {{- end }}
     {{- else }}
     - {}
     {{- end }}

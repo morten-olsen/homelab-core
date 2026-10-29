@@ -65,6 +65,14 @@ class ForwardAuthRendering(unittest.TestCase):
         policy, = self.kinds(self.render({'forwardAuth': {'excludePaths': []}}), 'AuthorizationPolicy')
         self.assertEqual(policy['spec']['rules'], [{}])
 
+    def test_selector_override_and_exempt_namespaces(self):
+        resources = self.render({'forwardAuth': {'selector': {'app': 'sonarr'}, 'exemptSourceNamespaces': ['prod-containarr']}})
+        policy, = self.kinds(resources, 'AuthorizationPolicy')
+        self.assertEqual(policy['spec']['selector'], {'matchLabels': {'app': 'sonarr'}})
+        self.assertEqual(policy['spec']['rules'], [{'from': [{'source': {'notNamespaces': ['prod-containarr']}}], 'to': [{'operation': {'notPaths': ['/api/*', '/ping']}}]}])
+        only_from, = self.kinds(self.render({'forwardAuth': {'excludePaths': [], 'exemptSourceNamespaces': ['x']}}), 'AuthorizationPolicy')
+        self.assertEqual(only_from['spec']['rules'], [{'from': [{'source': {'notNamespaces': ['x']}}]}])
+
     def test_oidc_owns_the_shared_group(self):
         resources = self.render({'oidc': {'enabled': True, 'redirectUris': ['/cb']}})
         self.assertEqual(self.kinds(resources, 'AuthentikGroup'), [])
