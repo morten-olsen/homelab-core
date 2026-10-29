@@ -13,10 +13,11 @@ The deployment is split across two Helm charts:
 
 ### Core chart (`charts/core`)
 
-Deploys the `authentik-operator` into the `authentik` namespace. The operator defines and manages two CRDs:
+Deploys the `authentik-operator` into the `authentik` namespace. The operator defines and manages three CRDs:
 
 - `AuthentikServer` -- represents an Authentik instance.
 - `AuthentikClient` -- represents an OIDC/OAuth2 client registration.
+- `AuthentikGroup` -- owns a GitOps access group and its complete membership list.
 
 ### Shared chart (`charts/shared/templates/authentik.yaml`)
 
@@ -26,6 +27,10 @@ Creates four resources when `resources.authentik.enabled` is `true`:
 2. **`AuthentikServer` CR** (`authentik`) -- references the database connection secret and configures the Authentik instance with the desired container image and canonical hostname.
 3. **Private Istio `VirtualService`** (`authentik-private`) -- routes the private and mesh gateways to the `authentik` service on port 9000.
 4. **Public bootstrap `VirtualService`** (`authentik-public`) -- preserves external IdP login/OIDC access so a new NetBird client can authenticate before joining the private network. The public prefixes `/if/admin`, `/administration`, `/api/v3/admin` and `/-/impersonation` retain their former 403 denials; these are path restrictions, not a claim of complete privileged-API isolation.
+
+The separate `charts/shared/templates/authentik-groups.yaml` template creates the
+configured `AuthentikGroup` resources, initially `shared/admin`, when Authentik is
+enabled.
 
 ## Database Integration
 
