@@ -11,8 +11,6 @@ Before you need this guide, ensure these are saved outside the cluster:
 | Restic password | Password manager | `kubectl get secret volsync-restic -n shared -o jsonpath='{.data.RESTIC_PASSWORD}' \| base64 -d` |
 | Cloudflare API token | Password manager | Manual -- same token used for DNS zone |
 | Registry credentials | Password manager | Username + password for zot.olsen.cloud (if using private registry) |
-| YubiKey | Physical possession | Used for SOPS decryption of `secrets/unifi.yaml` |
-| Backup age key | Offline storage (USB/printed) | Created during `scripts/setup-secrets.sh` |
 
 The Git repositories and NFS backups (`192.168.20.106:/mnt/HDD/k8s/backups`) contain everything else.
 
