@@ -151,6 +151,12 @@ errors fail the Job rather than unlocking or recreating the repository.
 After a successful snapshot it retains **7 daily, 4 weekly and 3 monthly**
 snapshots and prunes unreferenced data.
 
+The first real upload was OOM-killed at 512Mi. The uploader now bounds Go
+parallelism with `gomaxprocs: 2` and uses `goMemoryLimit: 384MiB` beneath that
+hard limit; verify actual peak memory during production acceptance. Keep the
+Go target below the hard limit when changing resource settings. It is a soft
+target, not itself a guarantee against OOM.
+
 Each database dump is internally consistent, but different databases are **not
 one atomic cross-database point in time**. There is no WAL archive, Barman or
 PITR: RPO is up to 24 hours when scheduled jobs succeed, longer after failures.

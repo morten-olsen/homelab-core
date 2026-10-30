@@ -118,6 +118,10 @@ spec:
                       key: RESTIC_PASSWORD
                 - name: RESTIC_HOST
                   value: postgres-cluster
+                - name: GOMAXPROCS
+                  value: {{ $logical.gomaxprocs | quote }}
+                - name: GOMEMLIMIT
+                  value: {{ $logical.goMemoryLimit | quote }}
                 - name: RETAIN_DAILY
                   value: {{ $logical.retain.daily | quote }}
                 - name: RETAIN_WEEKLY
