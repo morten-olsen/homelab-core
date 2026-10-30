@@ -91,7 +91,7 @@ operators:
 
   authentik:
     enabled: true
-    version: 0.3.0
+    version: 0.4.0
     namespace: authentik
     repoURL: https://mortenolsen.pro/homelab-authentik-operator
     chart: authentik-operator
