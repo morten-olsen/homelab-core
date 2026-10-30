@@ -57,30 +57,51 @@ EOF
 
 ### Install K3s
 
-```bash
-curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.33.4+k3s1" sh -s - \
-  --disable traefik \
-  --disable servicelb \
-  --write-kubeconfig-mode 644 \
-  --kubelet-arg="config=/etc/rancher/k3s/kubelet.config"
-```
-
-- `--disable traefik` and `--disable servicelb` — Istio handles ingress
-- `--kubelet-arg="config=..."` — applies the max pods limit
-- K3s includes local-path storage provisioner and CoreDNS by default
-
-### Copy kubeconfig to workstation
+All server flags go in `/etc/rancher/k3s/config.yaml`, so re-running the
+installer (upgrades) cannot drop them:
 
 ```bash
-scp root@192.168.20.180:/etc/rancher/k3s/k3s.yaml ~/.kube/config
-# Edit the server address from 127.0.0.1 to 192.168.20.180
-sed -i '' 's/127.0.0.1/192.168.20.180/' ~/.kube/config
+cat > /etc/rancher/k3s/config.yaml <<'EOF'
+disable:
+  - traefik
+kubelet-arg:
+  - allowed-unsafe-sysctls=net.ipv4.*
+  - config=/etc/rancher/k3s/kubelet.config
+EOF
+chmod 600 /etc/rancher/k3s/config.yaml
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.37.1+k3s1" sh -
 ```
+
+- Only Traefik is disabled: Istio handles ingress, but ServiceLB exposes the
+  gateway, Forgejo SSH, MQTT and Pi-hole DNS, and the bundled local-path
+  provisioner backs the PVCs.
+- `kubelet-arg` applies the max pods limit and allows the `net.ipv4.*` pod
+  sysctls.
+- Host-level settings outside this chart (kernel sysctls, disks and the CI disk
+  marker, `/etc/hosts` pins, the API server's OIDC authentication config) are
+  recorded with the host in the operations repository (`docs/host-setup.md`);
+  apply them as part of this step.
+
+### Add the cluster to your kubeconfig
+
+Do not copy `k3s.yaml` over `~/.kube/config`; that destroys other contexts.
+Merge the cluster and user from the host's `/etc/rancher/k3s/k3s.yaml`, with
+the server address changed from `127.0.0.1` to `192.168.20.180`:
+
+```bash
+scp root@192.168.20.180:/etc/rancher/k3s/k3s.yaml /tmp/k3s.yaml
+sed -i '' 's/127.0.0.1/192.168.20.180/' /tmp/k3s.yaml
+KUBECONFIG=~/.kube/config:/tmp/k3s.yaml kubectl config view --flatten > /tmp/merged && \
+  mv /tmp/merged ~/.kube/config && rm /tmp/k3s.yaml
+```
+
+When `default` entries already exist, the existing file wins on conflicts;
+replace the `default` user's certificate fields by hand instead.
 
 Verify:
 
 ```bash
-kubectl get nodes
+kubectl --context default get nodes
 # Should show: compute   Ready   control-plane,master
 kubectl get node compute -o jsonpath='{.status.capacity.pods}'
 # Should show: 250
