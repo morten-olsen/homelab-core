@@ -54,5 +54,6 @@ fi
 restic --cache-dir "$cache_dir" --quiet backup --host "$RESTIC_HOST" "$backup_path"
 restic --cache-dir "$cache_dir" --quiet forget --host "$RESTIC_HOST" --path "$backup_path" \
     --group-by host,paths --keep-daily "$RETAIN_DAILY" \
-    --keep-weekly "$RETAIN_WEEKLY" --keep-monthly "$RETAIN_MONTHLY" --prune
+    --keep-weekly "$RETAIN_WEEKLY" --keep-monthly "$RETAIN_MONTHLY"
+restic --cache-dir "$cache_dir" --quiet prune
 printf '%s\n' 'Encrypted PostgreSQL snapshot and retention completed.'

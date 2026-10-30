@@ -150,6 +150,8 @@ It initializes only an absent repository; wrong passwords, corruption and lock
 errors fail the Job rather than unlocking or recreating the repository.
 After a successful snapshot it retains **7 daily, 4 weekly and 3 monthly**
 snapshots and prunes unreferenced data.
+Prune runs separately from forget: `forget --prune` alone skips cleanup when no
+snapshot expires, leaving interrupted-run packs until a later expiration.
 
 The first real upload was OOM-killed at 512Mi. The uploader now bounds Go
 parallelism with `gomaxprocs: 2` and uses `goMemoryLimit: 384MiB` beneath that
@@ -329,10 +331,24 @@ python3 repos/core/charts/shared/tests/postgres_backup_test.py
 It requires Docker and image-pull access, publishes no ports, and cleans up its
 own fixtures. It does not verify production TLS, NAS permissions or offsite copies.
 
-The live isolated restore drill is **pending**. No measured production restore
-success, compression ratio, or RTO is claimed. A drill must verify globals,
-database contents, owners/ACLs, large objects, extensions and application-level
-behavior, plus offsite retrieval and escrow access, before relying on recovery.
+On **2026-10-30**, the production NAS drill restored and byte-verified all 2,060
+files from the encrypted repository, then restored all **38 databases** in about
+196 seconds. Database owners/encodings/collations, 42 non-system roles and nine
+membership rows (including grantors/options) matched the source. Stable Authentik
+user/application data matched; an isolated Authentik instance using the restored
+database and original key passed health and authenticated users/apps/OAuth APIs.
+The restore worker required 1Gi memory; the production uploader completed within
+its 512Mi limit after bounding Go parallelism/memory.
+
+| Production run | Logical dumps | Newly packed data |
+|---|---:|---:|
+| First successful backup | 2.441 GiB | 488.44 MiB |
+| Regenerated dumps about 19 minutes later | 2.448 GiB | 35.05 MiB |
+
+These are observed runs, **not a forecast of daily churn or retention cost**.
+The NAS drill did not test host replacement, production cutover, Backblaze
+retrieval, or offline key escrow. Those remain required for complete disaster
+recovery; detailed evidence and remaining scope are in HOMEIT-7/HOMEIT-502.
 
 ### Updating reflection annotations without rotating the password
 
