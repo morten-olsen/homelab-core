@@ -13,7 +13,7 @@ The deployment is split across two Helm charts:
 
 ### Core chart (`charts/core`)
 
-Deploys the `authentik-operator` into the `authentik` namespace. The operator defines and manages three CRDs:
+Deploys the `authentik-operator` into the `authentik` namespace. The operator defines and manages four CRDs:
 
 - `AuthentikServer` -- represents an Authentik instance.
 - `AuthentikClient` -- represents an OIDC/OAuth2 client registration.
@@ -191,3 +191,29 @@ sets the outpost's `authentik_host` to `https://auth.olsen.cloud`. Removing a us
 from a group blocks new logins; live outpost sessions last until
 `accessTokenValidity` (default `hours=8`). Roll back an application by disabling
 `forwardAuth`; the policy, route and provider are removed together.
+
+## Platform UIs: ArgoCD and Grafana
+
+With the `auth` feature on, ArgoCD and Grafana log in through Authentik and admit
+only `shared/admin` (backing group `gitops/shared/admin`). Each client lists that
+group as its only allowed group; there is no per-app group. The built-in admin
+accounts stay enabled as breakglass for when Authentik or the cluster is
+unhealthy.
+
+| UI | Client (namespace/name, slug) | Config |
+|---|---|---|
+| ArgoCD | `argocd/argocd`, `argocd-argocd`; public, PKCE | shared `resources.authentik.argocdClient`; core `argocdSso` sets `url`, `oidc.config` and `g, gitops/shared/admin, role:admin` |
+| Grafana | `monitoring/grafana`, `monitoring-grafana`; confidential | monitor `grafanaSso` renders the client and `auth.generic_oauth`; the group maps to `Admin`, `role_attribute_strict` refuses anyone else |
+
+Both clients sign with `authentik Self-signed Certificate`, so tokens can be
+verified against the provider JWKS (ArgoCD requires that; HS256 tokens signed
+with the client secret are not). ArgoCD's client is public because ArgoCD reads
+a referenced client secret only from Secrets labelled `app.kubernetes.io/part-of:
+argocd`, which the operator does not set; ArgoCD exchanges the code with PKCE
+instead. `argocd login <host> --sso` uses the same client through
+`http://localhost:8085/auth/callback`.
+
+The homelab chart enables these with `features.auth` (ArgoCD also needs
+`features.gitops`) and passes `platform.domain` to the core chart as
+`global.domain`. Group membership changes stop new logins only; existing ArgoCD
+and Grafana sessions keep their own lifetimes.

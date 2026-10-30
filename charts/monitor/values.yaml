@@ -11,6 +11,18 @@ global:
       - ApplyOutOfSyncOnly=true
       - CreateNamespace=true
 
+# Grafana login through Authentik (AuthentikClient monitoring/grafana).
+grafanaSso:
+  enabled: false
+  subdomain: grafana
+  authSubdomain: auth
+  # Authentik name of the shared chart's admin AuthentikGroup.
+  adminGroup: gitops/shared/admin
+  serverRef:
+    name: authentik
+    namespace: shared
+  signingKeyName: authentik Self-signed Certificate
+
 monitoring:
   prometheus-operator:
     enabled: true

@@ -6,6 +6,9 @@ Maps feature flags to individual operator enabled/disabled states.
 {{- define "homelab.operatorValues" -}}
 global:
   project: core
+  domain: {{ .Values.platform.domain }}
+argocdSso:
+  enabled: {{ and .Values.features.gitops .Values.features.auth }}
 operators:
   argocd:
     enabled: {{ .Values.features.gitops }}
@@ -97,6 +100,8 @@ resources:
     enabled: {{ .Values.features.mariadb }}
   authentik:
     enabled: {{ .Values.features.auth }}
+    argocdClient:
+      enabled: {{ and .Values.features.gitops .Values.features.auth }}
   temporal:
     enabled: {{ .Values.features.temporal }}
   meshPolicy:
@@ -118,6 +123,8 @@ global:
   ip: {{ .Values.platform.ip }}
   gatewayAddress: {{ .Values.platform.gatewayAddress }}
   project: monitor
+grafanaSso:
+  enabled: {{ .Values.features.auth }}
 backups:
   nfs:
     server: {{ .Values.backup.nfs.server }}

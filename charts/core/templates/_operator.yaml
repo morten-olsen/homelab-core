@@ -9,6 +9,10 @@
 {{- $global := $root.Values.global -}}
 {{- $operator := index $root.Values.operators $name -}}
 {{- $syncPolicy := default $global.syncPolicy $operator.syncPolicy -}}
+{{- $values := $operator.values -}}
+{{- if and (eq $name "argocd") $root.Values.argocdSso.enabled -}}
+{{- $values = mergeOverwrite (deepCopy (default dict $operator.values)) (include "homelab-core.argocdSsoValues" $root | fromYaml) -}}
+{{- end -}}
 {{- if $operator.enabled -}}
 ---
 apiVersion: argoproj.io/v1alpha1
@@ -32,10 +36,10 @@ spec:
     {{- if $operator.path }}
     path: {{ $operator.path }}
     {{- end }}
-    {{- if $operator.values }}
+    {{- if $values }}
     helm:
       values: |
-        {{- $operator.values | toYaml | nindent 8 }}
+        {{- $values | toYaml | nindent 8 }}
     {{- end }}
   syncPolicy:
     {{- toYaml $syncPolicy | nindent 4 }}

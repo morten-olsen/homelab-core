@@ -1,0 +1,28 @@
+{{- /*
+  OIDC client for Grafana, restricted to the central admin group. Writes
+  grafana-oidc-credentials, whose clientSecret Grafana reads from the
+  environment. Values: grafanaSso; Grafana config: homelab-monitor.grafanaSsoValues.
+*/ -}}
+{{- if .Values.grafanaSso.enabled }}
+{{- $sso := .Values.grafanaSso }}
+apiVersion: authentik.homelab.mortenolsen.pro/v1alpha1
+kind: AuthentikClient
+metadata:
+  name: grafana
+  namespace: {{ .Release.Namespace }}
+spec:
+  serverRef:
+    {{- toYaml $sso.serverRef | nindent 4 }}
+  name: Grafana
+  clientId: grafana
+  clientType: confidential
+  secretName: grafana-oidc-credentials
+  signingKeyName: {{ $sso.signingKeyName | quote }}
+  subjectMode: user_username
+  scopes: [openid, profile, email]
+  redirectUris:
+    - "https://{{ $sso.subdomain }}.{{ .Values.global.domain }}/login/generic_oauth"
+  allowedGroups:
+    - name: admin
+      namespace: {{ $sso.serverRef.namespace }}
+{{- end }}

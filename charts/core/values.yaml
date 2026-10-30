@@ -1,5 +1,7 @@
 global:
   project: core
+  # Platform domain; set by the homelab chart. Only needed by argocdSso.
+  domain: ""
   syncPolicy:
     automated:
       prune: true
@@ -8,6 +10,14 @@ global:
       - ServerSideApply=true
       - ApplyOutOfSyncOnly=true
       - CreateNamespace=true
+
+# ArgoCD login through Authentik (shared chart AuthentikClient argocd/argocd).
+argocdSso:
+  enabled: false
+  subdomain: argocd
+  authSubdomain: auth
+  # Authentik name of the shared chart's admin AuthentikGroup.
+  adminGroup: gitops/shared/admin
 
 operators:
   argocd:

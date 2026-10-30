@@ -32,3 +32,28 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/name: {{ include "homelab-core.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{- /* ArgoCD values that delegate login to Authentik. Merged over
+       operators.argocd.values when argocdSso.enabled. The client itself is the
+       shared chart's AuthentikClient argocd/argocd (application slug
+       argocd-argocd); only argocdSso.adminGroup gets in, as role:admin. The
+       built-in admin account stays enabled as breakglass. */ -}}
+{{- define "homelab-core.argocdSsoValues" -}}
+{{- $sso := .Values.argocdSso -}}
+{{- $domain := required "global.domain is required when argocdSso is enabled" .Values.global.domain -}}
+configs:
+  cm:
+    url: https://{{ $sso.subdomain }}.{{ $domain }}
+    admin.enabled: true
+    oidc.config: |
+      name: Authentik
+      issuer: https://{{ $sso.authSubdomain }}.{{ $domain }}/application/o/argocd-argocd/
+      clientID: argocd
+      enablePKCEAuthentication: true
+      requestedScopes: [openid, profile, email]
+  rbac:
+    policy.default: ""
+    policy.csv: |
+      g, {{ $sso.adminGroup }}, role:admin
+    scopes: "[groups]"
+{{- end }}

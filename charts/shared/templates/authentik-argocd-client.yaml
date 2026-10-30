@@ -1,0 +1,32 @@
+{{- /*
+  OIDC client for the ArgoCD UI and CLI, restricted to the central admin group.
+  Public client: ArgoCD exchanges the code with PKCE, so no secret has to be
+  copied into the argocd namespace with ArgoCD's part-of label. ArgoCD verifies
+  ID tokens against the JWKS, which needs an asymmetric signing key. The
+  matching oidc.config lives in the core chart (argocdSso).
+*/ -}}
+{{- $auth := .Values.resources.authentik -}}
+{{- if and $auth.enabled $auth.argocdClient.enabled }}
+apiVersion: authentik.homelab.mortenolsen.pro/v1alpha1
+kind: AuthentikClient
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  serverRef:
+    name: authentik
+    namespace: {{ .Release.Namespace }}
+  name: ArgoCD
+  clientId: argocd
+  clientType: public
+  signingKeyName: {{ $auth.signingKeyName | quote }}
+  subjectMode: user_username
+  scopes: [openid, profile, email]
+  redirectUris:
+    - "https://{{ $auth.argocdClient.subdomain }}.{{ .Values.global.domain }}/auth/callback"
+    # argocd login --sso
+    - "http://localhost:8085/auth/callback"
+  allowedGroups:
+    - name: admin
+      namespace: {{ .Release.Namespace }}
+{{- end }}

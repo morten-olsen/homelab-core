@@ -25,3 +25,21 @@ assert x['spec']['members'] == [{'id': 7, 'uuid': 'd8359fc2-7656-45d2-a22e-5cbd1
 assert set(x['spec']) == {'serverRef', 'members'}
 print('ok: central admin references only existing morten and exposes no superuser setting')
 PYTEST
+
+test -z "$(helm template shared "$chart" --namespace shared | yq 'select(.kind == "AuthentikClient") | .metadata.name')"
+helm template shared "$chart" --namespace shared \
+  --set global.domain=example.org --set resources.authentik.argocdClient.enabled=true \
+  --show-only templates/authentik-argocd-client.yaml | yq -o=json -I=0 '.' > "$tmp/argocd-client.json"
+python3 - "$tmp/argocd-client.json" <<'PYTEST'
+import json
+import sys
+x = json.load(open(sys.argv[1]))
+assert x['kind'] == 'AuthentikClient'
+assert x['metadata'] == {'name': 'argocd', 'namespace': 'argocd'}
+s = x['spec']
+assert s['clientId'] == 'argocd' and s['clientType'] == 'public'
+assert s['allowedGroups'] == [{'name': 'admin', 'namespace': 'shared'}]
+assert s['redirectUris'] == ['https://argocd.example.org/auth/callback', 'http://localhost:8085/auth/callback']
+assert s['signingKeyName'] == 'authentik Self-signed Certificate'
+print('ok: argocd client admits only the central admin group')
+PYTEST

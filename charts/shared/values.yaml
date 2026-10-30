@@ -156,6 +156,12 @@ resources:
           # Existing Authentik user morten; this grants application access only.
           - id: 7
             uuid: d8359fc2-7656-45d2-a22e-5cbd13cb941f
+    # Keypair for clients whose tokens are verified against the JWKS.
+    signingKeyName: authentik Self-signed Certificate
+    # ArgoCD login, admin group only (core chart argocdSso holds its config).
+    argocdClient:
+      enabled: false
+      subdomain: argocd
     image: ghcr.io/goauthentik/server:2026.8.5
     tls:
       enabled: true
