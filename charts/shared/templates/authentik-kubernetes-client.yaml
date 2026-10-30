@@ -1,0 +1,48 @@
+{{- /*
+  kubectl login (kubelogin) through Authentik, restricted to the central admin
+  group. The API server validates the ID tokens itself; its
+  AuthenticationConfiguration lives on the host (base docs/kubernetes-oidc.md)
+  and maps groups with the "oidc:" prefix. Public client with PKCE and
+  kubelogin's loopback redirects. offline_access makes Authentik issue refresh
+  tokens; every refresh rebuilds the groups claim, so removing someone from the
+  group ends their cluster access within the 1h ID token lifetime.
+  The cluster-admin binding has no effect until the API server trusts the issuer.
+  Client certificates are unaffected and remain the breakglass.
+*/ -}}
+{{- $auth := .Values.resources.authentik -}}
+{{- if and $auth.enabled $auth.kubernetesClient.enabled }}
+apiVersion: authentik.homelab.mortenolsen.pro/v1alpha1
+kind: AuthentikClient
+metadata:
+  name: kubernetes
+  namespace: {{ .Release.Namespace }}
+spec:
+  serverRef:
+    name: authentik
+    namespace: {{ .Release.Namespace }}
+  name: Kubernetes
+  clientId: kubernetes
+  clientType: public
+  signingKeyName: {{ $auth.signingKeyName | quote }}
+  subjectMode: user_username
+  scopes: [openid, profile, email, offline_access]
+  redirectUris:
+    - "http://localhost:8000"
+    - "http://localhost:18000"
+  allowedGroups:
+    - name: admin
+      namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: oidc-shared-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: "oidc:gitops/shared/admin"
+{{- end }}

@@ -192,9 +192,9 @@ from a group blocks new logins; live outpost sessions last until
 `accessTokenValidity` (default `hours=8`). Roll back an application by disabling
 `forwardAuth`; the policy, route and provider are removed together.
 
-## Platform UIs: ArgoCD and Grafana
+## Platform logins: ArgoCD, Grafana and kubectl
 
-With the `auth` feature on, ArgoCD and Grafana log in through Authentik and admit
+With the `auth` feature on, ArgoCD, Grafana and kubectl log in through Authentik and admit
 only `shared/admin` (backing group `gitops/shared/admin`). Each client lists that
 group as its only allowed group; there is no per-app group. The built-in admin
 accounts stay enabled as breakglass for when Authentik or the cluster is
@@ -204,6 +204,7 @@ unhealthy.
 |---|---|---|
 | ArgoCD | `argocd/argocd`, `argocd-argocd`; public, PKCE | shared `resources.authentik.argocdClient`; core `argocdSso` sets `url`, `oidc.config` and `g, gitops/shared/admin, role:admin` |
 | Grafana | `monitoring/grafana`, `monitoring-grafana`; confidential | monitor `grafanaSso` renders the client and `auth.generic_oauth`; the group maps to `Admin`, `role_attribute_strict` refuses anyone else |
+| kubectl | `shared/kubernetes`, `shared-kubernetes`; public, PKCE, `offline_access` | shared `resources.authentik.kubernetesClient` renders the client and ClusterRoleBinding `oidc-shared-admin` (`oidc:gitops/shared/admin` → `cluster-admin`); the API server's AuthenticationConfiguration is host configuration, documented in the base repository |
 
 Both clients sign with `authentik Self-signed Certificate`, so tokens can be
 verified against the provider JWKS (ArgoCD requires that; HS256 tokens signed
@@ -212,6 +213,13 @@ a referenced client secret only from Secrets labelled `app.kubernetes.io/part-of
 argocd`, which the operator does not set; ArgoCD exchanges the code with PKCE
 instead. `argocd login <host> --sso` uses the same client through
 `http://localhost:8085/auth/callback`.
+
+kubelogin refreshes the 1h ID token with the refresh token (30 days, renewed on
+every refresh). Authentik does not re-check the application's group binding on
+refresh, but it rebuilds the `groups` claim from current membership, and the API
+server requires the group in every token. Removing someone from `shared/admin`
+therefore ends their cluster access within an hour. Client certificates do not
+depend on Authentik and remain the breakglass.
 
 The homelab chart enables these with `features.auth` (ArgoCD also needs
 `features.gitops`) and passes `platform.domain` to the core chart as

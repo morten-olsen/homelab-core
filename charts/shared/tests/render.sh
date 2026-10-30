@@ -43,3 +43,24 @@ assert s['redirectUris'] == ['https://argocd.example.org/auth/callback', 'http:/
 assert s['signingKeyName'] == 'authentik Self-signed Certificate'
 print('ok: argocd client admits only the central admin group')
 PYTEST
+
+helm template shared "$chart" --namespace shared \
+  --set resources.authentik.kubernetesClient.enabled=true \
+  --show-only templates/authentik-kubernetes-client.yaml | yq -o=json -I=0 '.' > "$tmp/kubernetes-client.json"
+python3 - "$tmp/kubernetes-client.json" <<'PYTEST'
+import json
+import sys
+docs = {d['kind']: d for d in map(json.loads, open(sys.argv[1]))}
+assert set(docs) == {'AuthentikClient', 'ClusterRoleBinding'}
+client, binding = docs['AuthentikClient'], docs['ClusterRoleBinding']
+assert client['metadata'] == {'name': 'kubernetes', 'namespace': 'shared'}
+s = client['spec']
+assert s['clientId'] == 'kubernetes' and s['clientType'] == 'public'
+assert 'offline_access' in s['scopes'], 'kubelogin refreshes ID tokens'
+assert s['allowedGroups'] == [{'name': 'admin', 'namespace': 'shared'}]
+assert s['redirectUris'] == ['http://localhost:8000', 'http://localhost:18000']
+assert binding['kind'] == 'ClusterRoleBinding'
+assert binding['roleRef']['name'] == 'cluster-admin'
+assert binding['subjects'] == [{'apiGroup': 'rbac.authorization.k8s.io', 'kind': 'Group', 'name': 'oidc:gitops/shared/admin'}]
+print('ok: kubernetes client and cluster-admin binding cover only the central admin group')
+PYTEST

@@ -102,6 +102,8 @@ resources:
     enabled: {{ .Values.features.auth }}
     argocdClient:
       enabled: {{ and .Values.features.gitops .Values.features.auth }}
+    kubernetesClient:
+      enabled: {{ .Values.features.auth }}
   temporal:
     enabled: {{ .Values.features.temporal }}
   meshPolicy:

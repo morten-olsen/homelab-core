@@ -162,6 +162,9 @@ resources:
     argocdClient:
       enabled: false
       subdomain: argocd
+    # kubectl login, admin group only; the API server config is on the host.
+    kubernetesClient:
+      enabled: false
     image: ghcr.io/goauthentik/server:2026.8.5
     tls:
       enabled: true
