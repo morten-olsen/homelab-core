@@ -148,6 +148,11 @@ resources:
   authentik:
     enabled: true
     subdomain: auth
+    # Shared server/worker uploads; retained on Helm/ArgoCD deletion, not backed up automatically.
+    storage:
+      enabled: true
+      size: 1Gi
+      storageClassName: local-path
     # Semantic access groups. Resource names refer to separate, nonprivileged
     # gitops/<namespace>/<name> backing groups, never existing Authentik groups.
     groups:

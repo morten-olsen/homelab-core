@@ -22,12 +22,13 @@ Deploys the `authentik-operator` into the `authentik` namespace. The operator de
 
 ### Shared chart (`charts/shared/templates/authentik.yaml`)
 
-Creates four resources when `resources.authentik.enabled` is `true`:
+Creates the following resources when `resources.authentik.enabled` is `true`:
 
 1. **`PostgresDatabase` CR** (`authentik-db`) -- handled by the postgres-operator. This provisions a dedicated database for Authentik and populates a `authentik-db-connection` secret with connection details.
 2. **`AuthentikServer` CR** (`authentik`) -- references the database connection secret and configures the Authentik instance with the desired container image and canonical hostname.
 3. **Private Istio `VirtualService`** (`authentik-private`) -- routes the private and mesh gateways to the `authentik` service on port 9000.
 4. **Public bootstrap `VirtualService`** (`authentik-public`) -- preserves external IdP login/OIDC access so a new NetBird client can authenticate before joining the private network. The public prefixes `/if/admin`, `/administration`, `/api/v3/admin` and `/-/impersonation` retain their former 403 denials; these are path restrictions, not a claim of complete privileged-API isolation.
+5. **PersistentVolumeClaim** (`authentik-data`) -- created when `resources.authentik.storage.enabled` is `true`; referenced by `AuthentikServer.spec.dataVolumeClaimName` for shared local file storage.
 
 The separate `charts/shared/templates/authentik-groups.yaml` template creates the
 configured `AuthentikGroup` resources, initially `shared/admin`, when Authentik is
@@ -47,6 +48,32 @@ The secret `authentik-db-connection` contains four keys:
 | `password` | Database password                  |
 
 The `AuthentikServer` spec references each of these keys individually via `postgresHostSecretRef`, `postgresUserSecretRef`, `postgresDatabaseSecretRef`, and `postgresPasswordSecretRef`.
+
+## Uploaded files and persistence
+
+By default, `resources.authentik.storage` provisions a `1Gi`, `ReadWriteOnce`
+`local-path` claim named `authentik-data` in the AuthentikServer namespace.
+The operator mounts this same claim as volume `data` at `/data` in both the
+server and worker. A real `/data` mount is required for Authentik's local file
+backend to allow uploads, including flow background images; database storage
+alone does not enable or persist these files. The volume must be writable by
+Authentik's UID/GID `1000`.
+
+This configuration targets the single-node K3s cluster: `ReadWriteOnce` permits
+the server and worker to share the claim on that node, but `local-path` data is
+node-local and does not provide replication or protection against node loss.
+Uploads survive pod replacement while the underlying volume remains available.
+Disabling `resources.authentik.storage.enabled` omits both the claim manifest and
+the server's claim reference; Authentik then has no persistent local upload
+storage. Disabling Authentik omits both resources as well.
+
+The PVC carries Helm `keep` and ArgoCD `Prune=false,Delete=false` annotations to
+avoid automatic deletion. These retention safeguards are **not backups**.
+No automatic backup of `/data` is configured by this storage change. Authentik
+recovery requires both its PostgreSQL database and a separately arranged backup
+of this volume's files; database backups alone do not contain uploaded images.
+The shared chart manages the claim; the operator only references an existing
+claim and does not create, own or delete it.
 
 ## Accessing Authentik
 
@@ -98,6 +125,10 @@ resources:
     enabled: true
     subdomain: auth
     image: ghcr.io/goauthentik/server:2026.8.5
+    storage:
+      enabled: true
+      size: 1Gi
+      storageClassName: local-path
     tls:
       enabled: true
       secretName: wildcard-tls
@@ -108,6 +139,9 @@ resources:
 | `enabled`        | Toggle Authentik deployment                           | `true`                                       |
 | `subdomain`      | Subdomain prefix for the Authentik UI                 | `auth`                                       |
 | `image`          | Container image for the Authentik server              | `ghcr.io/goauthentik/server:2026.8.5`        |
+| `storage.enabled` | Create and mount the shared local upload claim       | `true`                                       |
+| `storage.size`   | Requested capacity for `authentik-data`               | `1Gi`                                        |
+| `storage.storageClassName` | Storage class for the upload claim         | `local-path`                                 |
 | `tls.enabled`    | Enable TLS on the ingress                             | `true`                                       |
 | `tls.secretName` | Name of the TLS secret (typically a wildcard cert)    | `wildcard-tls`                               |
 

@@ -1,6 +1,24 @@
 {{- if .Values.resources.authentik.enabled -}}
 {{- $auth := .Values.resources.authentik -}}
 {{- $global := .Values.global -}}
+{{- if $auth.storage.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: authentik-data
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ $auth.storage.storageClassName | quote }}
+  resources:
+    requests:
+      storage: {{ $auth.storage.size | quote }}
+---
+{{- end }}
 apiVersion: postgres.homelab.mortenolsen.pro/v1
 kind: PostgresDatabase
 metadata:
@@ -19,6 +37,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   image: {{ $auth.image | quote }}
+  {{- if $auth.storage.enabled }}
+  dataVolumeClaimName: authentik-data
+  {{- end }}
   postgresHostSecretRef:
     name: authentik-db-connection
     namespace: {{ .Release.Namespace }}
