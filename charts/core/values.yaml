@@ -308,16 +308,82 @@ operators:
             priority: NOTICE
             source: syscall
             tags: [container, k8s, network, mitre_discovery]
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
             append: false
-          - rule: Run shell untrusted
+          # CI step pods run arbitrary code by design (builds, tests, image builds),
+          # so every loaded rule ignores the woodpecker-ci namespace (HOMEIT-496).
+          # Woodpecker schedules all steps there (WOODPECKER_BACKEND_K8S_NAMESPACE).
+          # The list mirrors the stable falco_rules.yaml that falcoctl keeps current:
+          # a rule added upstream is not covered until listed here, and an override
+          # naming a rule upstream removed stops Falco from loading its rules.
+          - rule: Clear Log Activities
             override:
               exceptions: append
             exceptions:
-              - name: cnpg_wal_archiver
-                fields: [container.image.repository, proc.pname]
-                comps: [=, =]
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
                 values:
-                  - [ghcr.io/cloudnative-pg/postgresql, postgres]
+                  - [woodpecker-ci]
+          - rule: Create Hardlink Over Sensitive Files
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: Create Symlink Over Sensitive Files
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: Debugfs Launched in Privileged Container
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: Detect release_agent File Container Escapes
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: Directory traversal monitored file read
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: Disallowed SSH Connection Non Standard Port
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
           - rule: Drop and execute new binary in container
             override:
               exceptions: append
@@ -336,62 +402,160 @@ operators:
                 comps: [=, =]
                 values:
                   - [gitea, /app/gitea/gitea]
-              # Woodpecker steps in the ci/mise image install their toolchain at
-              # runtime and exec it; every node exec fired this rule (~6/s) and
-              # falcosidekick forwarded each one to Alertmanager as its own
-              # alert, OOMKilling it. Scoped to mise-installed binaries only.
-              # Steps run in woodpecker-ci; prod stays until the move settles.
-              - name: ci_mise_installed_tools
-                fields: [k8s.ns.name, container.image.repository, proc.exepath]
-                comps: [=, =, startswith]
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
                 values:
-                  - [woodpecker-ci, code.olsen.cloud/ci/mise, /mise/installs/]
-                  - [prod, code.olsen.cloud/ci/mise, /mise/installs/]
-          # Approved 2026-10-18 in task 7f6e986c: executor filesystem reads
-          # and cleanup during image builds. Exact tuples preserve detection for
-          # build children, other sensitive files and shell-driven log clearing.
-          # New-binary execution stays detected; this only covers 262/4,142
-          # sampled events and does not address the dominant execution volume.
+                  - [woodpecker-ci]
+          - rule: Execution from /dev/shm
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: Fileless execution via memfd_create
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: Find AWS Credentials
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: Linux Kernel Module Injection Detected
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: Netcat Remote Code Execution in Container
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: PTRACE anti-debug attempt
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: PTRACE attached to process
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: Packet socket created in container
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: Read sensitive file trusted after startup
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
           - rule: Read sensitive file untrusted
             override:
               exceptions: append
             exceptions:
-              - name: ci_kaniko_executor_sensitive_files
-                fields: [k8s.ns.name, container.image.repository, proc.name, proc.pname, proc.exepath, fd.name]
-                comps: [=, =, =, =, =, =]
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
                 values:
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/shadow]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.conf]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/runuser-l]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/common-session-noninteractive]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/newusers]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/runuser]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/common-account]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/chfn]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/su]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/su-l]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/common-auth]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/login]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/other]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/common-session]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/passwd]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/chpasswd]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/chsh]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /etc/pam.d/common-password]
-          - rule: Clear Log Activities
+                  - [woodpecker-ci]
+          - rule: Redirect STDOUT/STDIN to Network Connection in Container
             override:
               exceptions: append
             exceptions:
-              - name: ci_kaniko_executor_build_logs
-                fields: [k8s.ns.name, container.image.repository, proc.name, proc.pname, proc.exepath, fd.name]
-                comps: [=, =, =, =, =, =]
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
                 values:
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /var/log/alternatives.log]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /var/log/dpkg.log]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /var/log/btmp]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /var/log/faillog]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /var/log/lastlog]
-                  - [woodpecker-ci, code.olsen.cloud/ci/kaniko-build, executor, containerd-shim, /kaniko/executor, /var/log/wtmp]
+                  - [woodpecker-ci]
+          - rule: Remove Bulk Data from Disk
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: Run shell untrusted
+            override:
+              exceptions: append
+            exceptions:
+              - name: cnpg_wal_archiver
+                fields: [container.image.repository, proc.pname]
+                comps: [=, =]
+                values:
+                  - [ghcr.io/cloudnative-pg/postgresql, postgres]
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: Search Private Keys or Passwords
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: System user interactive
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
+          - rule: Terminal shell in container
+            override:
+              exceptions: append
+            exceptions:
+              - name: ci_workloads
+                fields: [k8s.ns.name]
+                comps: [=]
+                values:
+                  - [woodpecker-ci]
       falcosidekick:
         enabled: true
         # The web UI and its Redis are disabled: Redis kept every event (3 GiB,

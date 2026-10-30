@@ -1,13 +1,51 @@
 """Guard the approved Falco exception boundary in the rendered Application.
 
-This checks equality tuples, not syscall replay; use Falco --validate for native
-rule compilation and observe a real build after rollout.
+CI step pods run arbitrary code by design, so every loaded rule ignores the
+woodpecker-ci namespace and nothing else (HOMEIT-496). This checks the rendered
+rules, not syscall replay; use falco -V against the live falco_rules.yaml for
+native rule compilation and observe a real pipeline after rollout.
 """
 import json
 from pathlib import Path
 import subprocess
 
 chart = Path(__file__).resolve().parents[1]
+
+# The stable falco_rules.yaml rules loaded on the node (falco 0.45, 2026-10-30)
+# plus the locally redefined API-server rule.
+COVERED = {
+    "Clear Log Activities",
+    "Contact K8S API Server From Container",
+    "Create Hardlink Over Sensitive Files",
+    "Create Symlink Over Sensitive Files",
+    "Debugfs Launched in Privileged Container",
+    "Detect release_agent File Container Escapes",
+    "Directory traversal monitored file read",
+    "Disallowed SSH Connection Non Standard Port",
+    "Drop and execute new binary in container",
+    "Execution from /dev/shm",
+    "Fileless execution via memfd_create",
+    "Find AWS Credentials",
+    "Linux Kernel Module Injection Detected",
+    "Netcat Remote Code Execution in Container",
+    "PTRACE anti-debug attempt",
+    "PTRACE attached to process",
+    "Packet socket created in container",
+    "Read sensitive file trusted after startup",
+    "Read sensitive file untrusted",
+    "Redirect STDOUT/STDIN to Network Connection in Container",
+    "Remove Bulk Data from Disk",
+    "Run shell untrusted",
+    "Search Private Keys or Passwords",
+    "System user interactive",
+    "Terminal shell in container",
+}
+CI = {"name": "ci_workloads", "fields": ["k8s.ns.name"], "comps": ["="], "values": [["woodpecker-ci"]]}
+# Workload exceptions that predate the CI exclusion and stay as they are.
+OTHER = {
+    "Run shell untrusted": {"cnpg_wal_archiver"},
+    "Drop and execute new binary in container": {"known_images", "forgejo_image_binary"},
+}
 
 
 def yaml_documents(text):
@@ -23,65 +61,22 @@ rendered = subprocess.check_output(
 app, = [o for o in yaml_documents(rendered) if o and o.get("metadata", {}).get("name") == "falco"]
 values, = yaml_documents(app["spec"]["source"]["helm"]["values"])
 rules = yaml_documents(values["customRules"]["custom-rules.yaml"])[0]
-by_name = {r["rule"]: r for r in rules if "rule" in r}
-identity = {
-    "k8s.ns.name": "woodpecker-ci",
-    "container.image.repository": "code.olsen.cloud/ci/kaniko-build",
-    "proc.name": "executor",
-    "proc.pname": "containerd-shim",
-    "proc.exepath": "/kaniko/executor",
-}
-approved = {
-    "Read sensitive file untrusted": {
-        "/etc/shadow", "/etc/pam.conf",
-        *["/etc/pam.d/" + name for name in (
-            "runuser-l", "common-session-noninteractive", "newusers", "runuser",
-            "common-account", "chfn", "su", "su-l", "common-auth", "login",
-            "other", "common-session", "passwd", "chpasswd", "chsh", "common-password",
-        )],
-    },
-    "Clear Log Activities": {
-        "/var/log/alternatives.log", "/var/log/dpkg.log", "/var/log/btmp",
-        "/var/log/faillog", "/var/log/lastlog", "/var/log/wtmp",
-    },
-}
-positive = negative = 0
-for name, paths in approved.items():
-    assert name in by_name, f"Missing approved override: {name}"
-    rule = by_name[name]
-    assert rule["override"] == {"exceptions": "append"}
-    exception, = rule["exceptions"]
-    fields = [*identity, "fd.name"]
-    assert exception["fields"] == fields
-    assert exception["comps"] == ["="] * len(fields), "No prefix, glob or list comparisons"
-    tuples = exception["values"]
-    assert len(tuples) == len(paths)
-    assert {tuple(row) for row in tuples} == {
-        (*identity.values(), path) for path in paths
-    }, "Only the approved identities and exact files may be excluded"
+by_name = {}
+for rule in rules:
+    if "rule" in rule:
+        assert rule["rule"] not in by_name, f"One entry per rule: {rule['rule']}"
+        by_name[rule["rule"]] = rule
 
-    def excluded(event):
-        return any(all(event.get(field) == value for field, value in zip(fields, row))
-                   for row in tuples)
+assert set(by_name) == COVERED, set(by_name) ^ COVERED
+for name, rule in by_name.items():
+    if name != "Contact K8S API Server From Container":
+        assert rule.get("override") == {"exceptions": "append"}, name
+        assert set(rule) == {"rule", "override", "exceptions"}, f"{name} only adds exceptions"
+    exceptions = {e["name"]: e for e in rule["exceptions"]}
+    assert exceptions.pop("ci_workloads") == CI, f"{name} must ignore exactly woodpecker-ci"
+    assert set(exceptions) == OTHER.get(name, set()), name
 
-    for path in paths:
-        event = identity | {"fd.name": path}
-        assert excluded(event)
-        positive += 1
-        for field in fields:
-            assert not excluded(event | {field: "different"})
-            assert not excluded({k: v for k, v in event.items() if k != field})
-            negative += 2
-        assert not excluded(event | {"k8s.ns.name": "prod"})
-        assert not excluded(event | {"fd.name": path + "/child"})
-        negative += 2
-    assert not excluded(identity | {"fd.name": "/var/log/fontconfig.log"})
-    assert not excluded(identity | {"fd.name": "/etc/shadow.backup"})
-    assert not excluded(identity | {"proc.name": "fontconfig.post", "proc.pname": "dpkg",
-                                    "proc.exepath": "/usr/bin/dash", "fd.name": "/var/log/fontconfig.log"})
-    negative += 3
-
-# No Kaniko scope may be added to the dominant execution rule.
-new_binary = by_name["Drop and execute new binary in container"]
-assert "kaniko" not in json.dumps(new_binary)
-print(f"ok: {positive} approved exact tuples excluded; {negative} boundary cases retained; new-binary unchanged for Kaniko")
+text = json.dumps(rules)
+for retired in ("kaniko", "/mise/installs/", '"prod"'):
+    assert retired not in text, f"CI-specific exception left behind: {retired}"
+print(f"ok: {len(COVERED)} rules ignore woodpecker-ci only; other workload exceptions unchanged")
