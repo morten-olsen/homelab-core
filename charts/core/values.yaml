@@ -85,6 +85,11 @@ operators:
     namespace: authentik
     repoURL: https://mortenolsen.pro/homelab-authentik-operator
     chart: authentik-operator
+    values:
+      resources:
+        limits:
+          # HOMEIT-490: mitigate repeated OOMs at 128Mi; growth diagnosis remains open.
+          memory: 256Mi
 
   cert-manager:
     enabled: true
