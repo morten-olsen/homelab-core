@@ -1,0 +1,154 @@
+{{- if and .Values.resources.backups.enabled .Values.resources.postgresCluster.enabled }}
+{{- $backup := .Values.resources.backups }}
+{{- $logical := $backup.postgresLogical }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-backup
+  namespace: {{ .Release.Namespace | quote }}
+data:
+  dump.sh: |
+{{ .Files.Get "files/postgres-backup/dump.sh" | indent 4 }}
+  upload.sh: |
+{{ .Files.Get "files/postgres-backup/upload.sh" | indent 4 }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-backup
+  namespace: {{ .Release.Namespace | quote }}
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes: [ReadWriteOnce]
+  # Do not stage plaintext dumps on the NFS backup destination.
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: {{ $logical.storageSize }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: {{ .Release.Namespace | quote }}
+spec:
+  schedule: {{ $logical.schedule | quote }}
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 7200
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: postgres-backup
+            sidecar.istio.io/inject: "false"
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            fsGroup: 102
+            seccompProfile:
+              type: RuntimeDefault
+          initContainers:
+            - name: dump
+              image: {{ .Values.resources.postgresCluster.image | quote }}
+              command: [/bin/bash, /scripts/dump.sh]
+              securityContext:
+                runAsUser: 26
+                runAsGroup: 102
+                runAsNonRoot: true
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              env:
+                - name: PGHOST
+                  value: {{ printf "postgres-cluster-rw.%s.svc.cluster.local" .Release.Namespace | quote }}
+                - name: PGPORT
+                  value: "5432"
+                - name: PGDATABASE
+                  value: postgres
+                - name: PGSSLMODE
+                  value: require
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-cluster-controller
+                      key: username
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-cluster-controller
+                      key: password
+              resources:
+                {{- toYaml $logical.dumpResources | nindent 16 }}
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: staging
+                  mountPath: /backup
+                - name: temporary
+                  mountPath: /tmp
+          containers:
+            - name: upload
+              image: {{ $logical.resticImage | quote }}
+              command: [/bin/sh, /scripts/upload.sh]
+              securityContext:
+                # Existing NAS backup directories are written by root movers.
+                runAsUser: 0
+                runAsGroup: 0
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              env:
+                - name: RESTIC_REPOSITORY
+                  value: /mnt/backup/postgres-logical
+                - name: RESTIC_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: volsync-restic
+                      key: RESTIC_PASSWORD
+                - name: RESTIC_HOST
+                  value: postgres-cluster
+                - name: RETAIN_DAILY
+                  value: {{ $logical.retain.daily | quote }}
+                - name: RETAIN_WEEKLY
+                  value: {{ $logical.retain.weekly | quote }}
+                - name: RETAIN_MONTHLY
+                  value: {{ $logical.retain.monthly | quote }}
+              resources:
+                {{- toYaml $logical.uploadResources | nindent 16 }}
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: staging
+                  mountPath: /backup
+                  readOnly: true
+                - name: repository
+                  mountPath: /mnt/backup
+                - name: temporary
+                  mountPath: /tmp
+          volumes:
+            - name: scripts
+              configMap:
+                name: postgres-backup
+            - name: staging
+              persistentVolumeClaim:
+                claimName: postgres-backup
+            - name: repository
+              nfs:
+                server: {{ $backup.nfs.server | quote }}
+                path: {{ $backup.nfs.path | quote }}
+            - name: temporary
+              emptyDir:
+                sizeLimit: 1Gi
+{{- end }}

@@ -222,7 +222,7 @@ Each feature flag controls one or more operators and the platform resources that
 | **Monitoring** | `monitoring` | — | Prometheus, Grafana, Alertmanager, blackbox exporter |
 | **Security** | `security` | Falco, Trivy, Kyverno | Runtime detection, vulnerability scanning, policy engine |
 | **Secrets** | `secrets` | Sealed Secrets, External Secrets | — (secrets created by apps) |
-| **Backup** | `backup` | VolSync | Restic-based PVC backup to NFS |
+| **Backup** | `backup` | VolSync | Encrypted PVC backups and PostgreSQL logical-dump/restic Job to NFS |
 | **DNS** | `dns` | DNS operator | Pi-hole, DNS sidecar |
 | **Reflection** | `reflection` | Reflector | Cross-namespace secret/configmap mirroring |
 | **Reloader** | `reloader` | Reloader | Auto-restart pods on config changes |
@@ -344,7 +344,7 @@ See [Local Development](docs/local-development.md) for details.
 | [Authentication](docs/authentication.md) | Authentik OIDC setup and integration |
 | [Secrets](docs/secrets.md) | External Secrets, Sealed Secrets, Reflector |
 | [Monitoring](docs/monitoring.md) | Prometheus, alerts, Grafana, Blackbox probes |
-| [Backups](docs/backups.md) | Volsync + restic, schedules, restore procedures |
+| [Backups](docs/backups.md) | Volsync, PostgreSQL logical dumps, encrypted restic, schedules and restore procedures |
 | [Disaster Recovery](docs/disaster-recovery.md) | Full cluster restore runbook |
 | [Local Development](docs/local-development.md) | Nix shell, Kind, Makefile targets |
 

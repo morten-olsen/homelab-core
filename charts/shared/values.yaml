@@ -215,17 +215,32 @@ resources:
     nfs:
       server: ""
       path: ""
+    postgresLogical:
+      schedule: "0 3 * * *"
+      # Local-only plaintext staging; restic encrypts before writing to NFS.
+      # local-path requests are not enforced disk quotas.
+      storageSize: 20Gi
+      resticImage: restic/restic:0.18.1@sha256:39d9072fb5651c80d75c7a811612eb60b4c06b32ffe87c2e9f3c7222e1797e76
+      retain:
+        daily: 7
+        weekly: 4
+        monthly: 3
+      dumpResources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          memory: 512Mi
+      uploadResources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          memory: 512Mi
     sources:
       pihole:
         pvcName: pihole-data
         schedule: "0 2 * * *"
-        retain:
-          daily: 7
-          weekly: 4
-          monthly: 3
-      postgres:
-        pvcName: postgres-cluster-1
-        schedule: "0 3 * * *"
         retain:
           daily: 7
           weekly: 4

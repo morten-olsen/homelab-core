@@ -1,34 +1,29 @@
 # Backup System
 
-Encrypted incremental backups for all Kubernetes persistent volumes, powered by
-[Volsync](https://volsync.readthedocs.io/) and [restic](https://restic.net/).
+Encrypted incremental backups use [restic](https://restic.net/). Ordinary
+application PVCs use [Volsync](https://volsync.readthedocs.io/); PostgreSQL uses
+native logical dumps before restic, **not a live PGDATA/PVC copy**.
 
 ## Architecture
 
-```
-┌─────────────────┐     restic (encrypted,     ┌──────────────┐     automatic     ┌───────────┐
-│  PVC (source)   │──── incremental, dedup) ───▶│  NFS Share   │────────────────▶  │ Backblaze │
-│  local-path     │     via Volsync mover pod   │  192.168.20  │                   │   B2      │
-└─────────────────┘                             │  .106        │                   └───────────┘
-                                                └──────────────┘
+```text
+Application PVC ── Volsync/restic ───────────────┐
+PostgreSQL ── logical dump ── local staging ── restic ── NFS ── NAS sync ── Backblaze B2
+                                              └──── encrypted repositories ────┘
 ```
 
-Each PVC with backup enabled gets a `ReplicationSource` CR. Volsync runs a restic
-mover pod on the configured schedule that:
+Restic deduplicates content before client-side encryption. Only encrypted restic
+repository data is written to NFS; PostgreSQL plaintext dumps stay on the local
+staging PVC. NFS is `192.168.20.106:/mnt/HDD/k8s/backups`.
 
-1. Mounts the source PVC (read-only via `copyMethod: Direct`)
-2. Mounts the NFS share at `/backup` via `moverVolumes`
-3. Runs `restic backup` against the PVC data, writing encrypted incremental
-   snapshots to `/backup/`
-4. Runs `restic forget` + `restic prune` per the retention policy
+Volsync mover pods mount application PVCs read-only (`copyMethod: Direct`) and
+mount their individual NFS repository at `/mnt/backup`. Each backup target has
+an isolated repository, so locks do not block unrelated repositories. The
+repositories share the escrowed `volsync-restic` encryption password.
 
-Each backup target gets its own **isolated restic repository** at
-`/backup/<name>` (via per-app NFS subdirectory mounts). This eliminates lock
-contention between backups — a stale lock in one app's repo cannot block any
-other app's backups. All repos share the same encryption password.
-
-The NFS share content is then automatically backed up to Backblaze B2, providing
-offsite redundancy.
+The NAS is intended to sync these encrypted repositories to Backblaze B2.
+**Offsite recovery depends on verifying that NAS-to-Backblaze job**, its retained
+copies, access credentials and encryption keys; Git alone cannot recover data.
 
 ### Components
 
@@ -55,6 +50,8 @@ Each backup target has its own restic repository in a subdirectory:
 │   └── snapshots/
 ├── grafana/
 ├── forgejo/
+├── postgres-logical/   ← PostgreSQL logical dumps, encrypted by restic
+├── postgres/           ← archived raw-PVC snapshots; not validated DB recovery
 └── ...
 ```
 
@@ -94,33 +91,72 @@ The secret is created by: `charts/shared/templates/backups.yaml`
 
 > **WARNING**: If the `volsync-restic` secret in the `shared` namespace is
 > deleted, a new password will be generated and **all existing backups become
-> permanently unreadable**. Export and save the password immediately after first
-> deploy (see below).
+> permanently unreadable** unless the original password is escrowed. Save it
+> outside the cluster before relying on backups.
 
-### Initial setup
+### Initial setup and escrow
 
-1. Deploy. Volsync, External Secrets, and Reflector will automatically:
-   - Generate the restic password in `shared`
-   - Reflect it to all other namespaces
-   - Initialise the restic repository on first backup run
+1. Deployment generates the password once in `shared`, reflects it to permitted
+   namespaces, and initializes each repository on its first backup.
+2. Transfer the password directly to a password manager or an encrypted offline
+   escrow through an approved secret-management workflow. Do not print it to a
+   terminal, put it in shell history, logs, or Git.
+3. Escrow the **full Sealed Secrets controller private-key set**, application
+   encryption/signing secrets needed to read restored data (not just database
+   passwords), and external storage/access credentials separately. Test access
+   to escrow without depending on the failed cluster.
 
-2. **Export and save the password** — this is critical for disaster recovery:
-   ```bash
-   kubectl get secret volsync-restic -n shared \
-     -o jsonpath='{.data.RESTIC_PASSWORD}' | base64 -d
-   ```
-
-3. Store the password in a password manager or other secure offline location.
+See [disaster-recovery.md](disaster-recovery.md) for recovery prerequisites.
 
 ## Shared and monitoring backups
 
-Backups for infrastructure PVCs (pihole, postgres, grafana) are configured
-directly in the core chart values:
+Infrastructure backups are configured in:
 
-- `charts/shared/values.yaml` → `resources.backups.sources`
-- `charts/monitor/values.yaml` → `backups.sources`
+- `charts/shared/values.yaml` → `resources.backups.sources` (Pi-hole)
+- `charts/shared/values.yaml` → `resources.backups.postgresLogical` (PostgreSQL)
+- `charts/monitor/values.yaml` → `backups.sources` (Grafana)
 
-Each source specifies the PVC name, schedule, and retention.
+### PostgreSQL logical backups
+
+The `shared/postgres-backup` CronJob runs daily at **03:00 UTC**. Jobs do not
+overlap (`Forbid`), do not retry failed executions, and never restart containers.
+Its PostgreSQL 18 dump init container connects with TLS to the primary service
+and writes to a **20Gi local-path staging PVC**, with no NFS mount. It exports:
+
+- `globals.sql`: roles (including password hashes) and global objects, using
+  `pg_dumpall --globals-only --clean --if-exists`.
+- `bootstrap-role.json`: source bootstrap role identity (OID 10), required to
+  preserve PostgreSQL role grantors during recovery.
+- `databases.list`: NUL-delimited `oid<TAB>database-name` records for every
+  connectable non-template database, including `postgres`.
+- `databases/<oid>/`: uncompressed directory-format `pg_dump` archives preserving
+  ownership, ACLs and large objects.
+- `complete`: published only after every export succeeds.
+
+The completed generation is `/backup/current`; incomplete work is never uploaded.
+At most the prior complete generation plus new working output are staged; stale
+failed work is reset on the next run. The local staging PVC contains sensitive
+plaintext, including role hashes: protect host/storage access and do not copy it
+to NFS. Provision enough space for the prior and new generation.
+The 20Gi PVC size is a provisioning request, **not an enforced local-path disk
+quota**. Monitor free space on the backing host disk; staging must remain on
+local-path rather than NFS.
+
+Only after dumping succeeds does the restic container mount staging read-only
+and upload `/backup/current` with host `postgres-cluster`. It mounts the NFS
+parent at `/mnt/backup` but overrides the repository to
+`/mnt/backup/postgres-logical`, separate from old `/postgres` snapshots.
+It initializes only an absent repository; wrong passwords, corruption and lock
+errors fail the Job rather than unlocking or recreating the repository.
+After a successful snapshot it retains **7 daily, 4 weekly and 3 monthly**
+snapshots and prunes unreferenced data.
+
+Each database dump is internally consistent, but different databases are **not
+one atomic cross-database point in time**. There is no WAL archive, Barman or
+PITR: RPO is up to 24 hours when scheduled jobs succeed, longer after failures.
+The old raw-PVC `/postgres` repository is retained without deletion, but is
+**not a validated PostgreSQL recovery source**. No new generic PGDATA backup
+should be enabled.
 
 ### Disabling backups
 
@@ -160,29 +196,34 @@ Key fields to check:
 - `status.lastSyncDuration` — how long it took
 - `status.conditions` — any errors
 
+For PostgreSQL, inspect `kubectl get cronjob,jobs -n shared` and the
+`postgres-backup` Job outcome. A successful dump alone is not an off-cluster
+backup: confirm a new `postgres-logical` snapshot, repository integrity and the
+NAS offsite copy. Avoid dumping logs or payload/credential-bearing SQL during
+investigation.
+
 ## Restoring a single PVC
+
+This procedure is for ordinary application PVCs only, **not PostgreSQL**. Stop
+the owning application and prevent GitOps from restarting it before overwriting
+its data. PostgreSQL requires the isolated logical restore in
+[disaster-recovery.md](disaster-recovery.md#step-6b-restore-postgresql-in-isolation).
 
 ### Prerequisites
 
-- The restic password (export from the cluster or use the saved copy)
+- The escrowed restic password, supplied through a protected password file
 - Access to the NFS share (or a copy of it)
 - `restic` CLI installed locally
 
 ### Step 1: List available snapshots
 
 ```bash
-# Get the password from the cluster (if still running)
-export RESTIC_PASSWORD=$(kubectl get secret volsync-restic -n shared \
-  -o jsonpath='{.data.RESTIC_PASSWORD}' | base64 -d)
+# Populate this mode-0600 file from escrow without printing its contents.
+export RESTIC_PASSWORD_FILE=/secure/escrow/restic-password
 
-# Mount the NFS share (or use the local path if already mounted)
-export RESTIC_REPOSITORY=/path/to/nfs/mount
-
-# List all snapshots (each ReplicationSource has its own hostname)
+# Select one repository, not the NFS parent directory.
+export RESTIC_REPOSITORY=/mnt/backups/pihole
 restic snapshots
-
-# Filter by a specific backup
-restic snapshots --host backup-pihole
 ```
 
 ### Step 2: Restore via Volsync ReplicationDestination
@@ -210,7 +251,7 @@ spec:
         volumeSource:
           nfs:
             server: 192.168.20.106
-            path: /mnt/HDD/k8s/backups
+            path: /mnt/HDD/k8s/backups/pihole
 ```
 
 ```bash
@@ -236,14 +277,14 @@ If you prefer to restore manually (e.g., to inspect data before overwriting):
 ```bash
 mount -t nfs 192.168.20.106:/mnt/HDD/k8s/backups /mnt/backups
 
-export RESTIC_REPOSITORY=/mnt/backups
-export RESTIC_PASSWORD='your-restic-password'
+export RESTIC_REPOSITORY=/mnt/backups/pihole
+export RESTIC_PASSWORD_FILE=/secure/escrow/restic-password
 
 # Browse a snapshot interactively
 restic mount /mnt/restic-browse
 
-# Or restore a specific snapshot to a local directory
-restic restore latest --host backup-pihole --target /tmp/restore
+# Choose an explicit snapshot ID after inspecting the repository.
+restic restore <snapshot-id> --target /secure/local-restore
 ```
 
 Then copy the restored data into the PVC using `kubectl cp` or by mounting it.
@@ -260,13 +301,32 @@ See [disaster-recovery.md](disaster-recovery.md) for the complete procedure cove
 
 ## Backup schedule overview
 
-| Namespace | PVCs | Schedule |
-|-----------|------|----------|
-| shared | pihole-data | 02:00 daily |
-| shared | postgres-cluster-1 | 03:00 daily |
-| monitoring | grafana | 02:00 daily |
+| Namespace | Source | Schedule |
+|-----------|--------|----------|
+| shared | pihole-data (Volsync) | 02:00 daily |
+| shared | PostgreSQL logical dump + restic | 03:00 UTC daily |
+| monitoring | grafana (Volsync) | 02:00 daily |
 
-Schedules are staggered to avoid NFS contention.
+Schedules are staggered to avoid NFS contention. PostgreSQL retention is
+7 daily / 4 weekly / 3 monthly.
+
+### Recovery validation status
+
+The local PostgreSQL 18/restic regression exercises backup, regenerated-dump
+deduplication, full restore, owners/ACLs, membership grantors, sequences, large
+objects, unusual database names and failure guards against disposable containers:
+
+```bash
+python3 repos/core/charts/shared/tests/postgres_backup_test.py
+```
+
+It requires Docker and image-pull access, publishes no ports, and cleans up its
+own fixtures. It does not verify production TLS, NAS permissions or offsite copies.
+
+The live isolated restore drill is **pending**. No measured production restore
+success, compression ratio, or RTO is claimed. A drill must verify globals,
+database contents, owners/ACLs, large objects, extensions and application-level
+behavior, plus offsite retrieval and escrow access, before relying on recovery.
 
 ### Updating reflection annotations without rotating the password
 

@@ -110,8 +110,15 @@ Two complementary approaches: External Secrets for generating secrets (passwords
 |-----------|------|-----------------|
 | VolSync | Operator | `volsync` from backube.github.io |
 | Backup resources | Resources | ReplicationSource CRs for PVCs |
+| PostgreSQL backups | Resources | Daily logical-dump/restic CronJob and local staging PVC |
 
 VolSync replicates PVCs to NFS using restic encryption. Backup schedules are defined per-PVC in the platform and monitoring sub-charts. Applications can also declare backups via the common library chart.
+
+With `postgres` enabled, PostgreSQL instead uses uncompressed logical dumps on
+local-path staging, followed by encrypted restic upload to `postgres-logical`.
+Configure `overrides.platform.resources.backups.postgresLogical` for its schedule,
+staging size, resources and retention. Plaintext dumps never go to NFS; recovery
+is from daily snapshots rather than continuous WAL/PITR. See [backups](backups.md).
 
 **Configuration:**
 ```yaml
