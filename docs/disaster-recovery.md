@@ -1,8 +1,8 @@
 # Disaster Recovery
 
-Procedure to bootstrap the host and recover data. The live PostgreSQL isolated
-restore drill is **pending**; this guide is not evidence of a successful full
-recovery or a measured RTO.
+Procedure to bootstrap the host and recover data. The isolated PostgreSQL/NAS
+restore and representative Authentik recovery passed on 2026-10-30 (HOMEIT-7).
+This is not evidence of offsite recovery, host rebuild/cutover, or a full RTO.
 
 ## Prerequisites
 
@@ -327,8 +327,9 @@ Retention in `postgres-logical` is 7 daily / 4 weekly / 3 monthly.
    Cutover to a replacement managed cluster is a separate controlled operation;
    this guide does not overwrite the existing CNPG instance automatically.
 
-The live drill remains pending. Record observed outcomes and recovery timings
-only after exercising this process, including retrieving the offsite copy.
+The 2026-10-30 NAS drill restored all 38 databases, verified owners and role
+grantors, and started an isolated Authentik instance with healthy authenticated
+APIs. Backblaze retrieval and offline-key escrow were not exercised.
 
 
 ## Step 7: Restore Grafana
@@ -454,9 +455,11 @@ These are regenerated automatically and do not need restoration:
 
 ## Recovery validation and timing
 
-The live isolated PostgreSQL restore and complete disaster-recovery drill are
-**pending**. No measured production restore success, compression savings or RTO
-is claimed. Record actual bootstrap, offsite retrieval, database restore,
-application validation and cutover durations during a drill. Recovery time
-depends on data sizes, available images/extensions, storage throughput and
-escrow access; a running cluster with empty data is not a completed recovery.
+The 2026-10-30 drill byte-verified all restored repository files and restored all
+38 databases in about 196 seconds. Representative Authentik health and users,
+applications and OAuth provider APIs passed against that isolated database.
+See [backup acceptance evidence](backups.md#recovery-validation-status).
+
+A complete disaster-recovery drill is still pending: host bootstrap, offsite
+retrieval, escrow access and production cutover were not tested. The measured
+SQL restore duration is not a full RTO or a guarantee for future data sizes.

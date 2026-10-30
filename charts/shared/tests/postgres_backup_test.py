@@ -6,6 +6,7 @@ All databases, passwords, networks and volumes below are disposable test fixture
 
 import json
 from pathlib import Path
+import random
 import shutil
 import subprocess
 import sys
@@ -118,7 +119,7 @@ class PostgresBackupTest(unittest.TestCase):
                            self.source, "bash", "-s", data=(SCRIPTS / "dump.sh").read_bytes(),
                            success=success)
 
-    def restic(self, *command, password=PASSWORD, upload=False, success=True):
+    def restic(self, *command, password=PASSWORD, upload=False, success=True, data=None):
         options = ["--group-add", "102", "--network", self.network,
                    "-v", self.volumes["staging"] + ":/backup:ro",
                    "-v", self.volumes["repository"] + ":/mnt/backup",
@@ -129,7 +130,8 @@ class PostgresBackupTest(unittest.TestCase):
             return self.temporary_container(
                 RESTIC, ["--cap-drop=ALL", *options, "--entrypoint", "/bin/sh"], ["-s"],
                 data=(SCRIPTS / "upload.sh").read_bytes(), success=success)
-        return self.temporary_container(RESTIC, options, ["--no-cache", *command], success=success)
+        return self.temporary_container(RESTIC, options, ["--no-cache", *command],
+                                        data=data, success=success)
 
     def snapshots(self):
         return json.loads(self.restic("snapshots", "--json").stdout)
@@ -183,6 +185,15 @@ class PostgresBackupTest(unittest.TestCase):
         first = self.snapshots()
         self.assertEqual(len(first), 1)
 
+        # An interrupted writer can leave unreferenced packs even when no
+        # retained snapshot expires. Successful backups must reclaim them.
+        packs_before = set(self.restic("list", "packs").stdout.splitlines())
+        self.restic("backup", "--stdin", "--stdin-filename", "orphan-fixture",
+                    data=random.Random(7).randbytes(1024 * 1024))
+        orphan = next(item["id"] for item in self.snapshots() if item["id"] != first[0]["id"])
+        orphan_packs = set(self.restic("list", "packs").stdout.splitlines()) - packs_before
+        self.restic("forget", orphan)
+
         # Recreate archives rather than merely snapshot unchanged files. Native
         # dump timestamps may change, but most uncompressed data must deduplicate.
         self.dump()
@@ -191,6 +202,8 @@ class PostgresBackupTest(unittest.TestCase):
         latest = max(snapshots, key=lambda item: item["time"])
         summary = latest["summary"]
         self.assertLess(summary["data_added"] / summary["total_bytes_processed"], 0.35)
+        self.assertTrue(orphan_packs.isdisjoint(
+            set(self.restic("list", "packs").stdout.splitlines())))
 
         before_failure = self.generation_hashes()
         self.assertNotEqual(self.dump(user="missing_backup_role", success=False).returncode, 0)
