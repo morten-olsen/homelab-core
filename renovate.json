@@ -81,6 +81,16 @@
         "docker"
       ],
       "pinDigests": true
+    },
+    {
+      "description": "Skip the published DNS operator chart with an invalid default image (HOMEIT-510)",
+      "matchDatasources": [
+        "helm"
+      ],
+      "matchPackageNames": [
+        "dns-operator"
+      ],
+      "allowedVersions": "!/^0\\.0\\.10$/"
     }
   ]
 }
