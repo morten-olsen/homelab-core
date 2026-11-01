@@ -590,7 +590,7 @@ operators:
 
   dns-operator:
     enabled: true
-    version: 0.0.8
+    version: 0.0.10
     namespace: falco
     repoURL: https://morten-olsen.github.io/homelab-dns-operator
     chart: dns-operator
