@@ -781,7 +781,7 @@ operators:
 
   reflector:
     enabled: true
-    version: 10.0.65
+    version: 10.0.70
     namespace: reflector
     repoURL: oci://ghcr.io/emberstack/helm-charts/reflector
     path: .
