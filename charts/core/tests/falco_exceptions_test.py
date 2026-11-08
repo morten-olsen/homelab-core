@@ -41,10 +41,12 @@ COVERED = {
     "Terminal shell in container",
 }
 CI = {"name": "ci_workloads", "fields": ["k8s.ns.name"], "comps": ["="], "values": [["woodpecker-ci"]]}
-# Workload exceptions that predate the CI exclusion and stay as they are.
+# Approved workload exceptions, separate from the namespace-wide CI exclusion.
 OTHER = {
     "Run shell untrusted": {"cnpg_wal_archiver"},
-    "Drop and execute new binary in container": {"known_images", "forgejo_image_binary"},
+    "Drop and execute new binary in container": {
+        "known_images", "forgejo_image_binary", "flaresolverr_patched_chromedriver",
+    },
 }
 
 
@@ -76,7 +78,27 @@ for name, rule in by_name.items():
     assert exceptions.pop("ci_workloads") == CI, f"{name} must ignore exactly woodpecker-ci"
     assert set(exceptions) == OTHER.get(name, set()), name
 
+# Every field is an equality in a single tuple: no image-wide, namespace-wide,
+# alternate-executable, parent or UID escape from the drop-and-execute rule.
+drop_exceptions = {
+    e["name"]: e for e in by_name["Drop and execute new binary in container"]["exceptions"]
+}
+assert drop_exceptions["flaresolverr_patched_chromedriver"] == {
+    "name": "flaresolverr_patched_chromedriver",
+    "fields": [
+        "k8s.ns.name", "container.name", "container.image.repository",
+        "container.image.tag", "proc.exepath", "proc.name", "proc.pname",
+        "proc.aname[2]", "user.uid",
+    ],
+    "comps": ["="] * 9,
+    "values": [[
+        "prod-containarr", "flaresolverr", "ghcr.io/flaresolverr/flaresolverr",
+        "cd2872fa4a3e0bb10acee4063771adeba71feb8bf75311dd481a7a1ce3c32d36",
+        "/app/chromedriver", "chromedriver", "python", "dumb-init", 1000,
+    ]],
+}, "FlareSolverr exclusion must stay limited to the approved image and execution identity"
+
 text = json.dumps(rules)
 for retired in ("kaniko", "/mise/installs/", '"prod"'):
     assert retired not in text, f"CI-specific exception left behind: {retired}"
-print(f"ok: {len(COVERED)} rules ignore woodpecker-ci only; other workload exceptions unchanged")
+print(f"ok: {len(COVERED)} CI rule scopes and pinned FlareSolverr execution boundary")

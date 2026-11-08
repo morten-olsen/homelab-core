@@ -18,6 +18,43 @@ All alerts flow through Alertmanager, which currently has no push receiver: ever
 
 The former `ntfy-alertmanager` bridge was removed because it could not deliver (ntfy rejected it with 403) and its failures fed `AlertmanagerFailedToSendAlerts`. Push delivery is to be redesigned separately.
 
+## Falco workload exceptions
+
+`charts/core/values.yaml` appends exceptions to individual Falco rules.
+HOMEIT-540 excludes only the expected FlareSolverr ChromeDriver execution from
+**Drop and execute new binary in container**, using one tuple of equalities:
+
+| Field | Required value |
+|---|---|
+| Namespace / container | `prod-containarr` / `flaresolverr` |
+| Image repository | `ghcr.io/flaresolverr/flaresolverr` |
+| Image tag reported by Falco | `cd2872fa4a3e0bb10acee4063771adeba71feb8bf75311dd481a7a1ce3c32d36` |
+| Executable / process | `/app/chromedriver` / `chromedriver` |
+| Parent / grandparent | `python` / `dumb-init` |
+| UID | `1000` |
+
+The current containerd sensor reports the image **config digest** as
+`container.image.tag`; this is not a mutable `latest` allowance. That config was
+verified under pinned image index
+`sha256:c80ae007ce2ccdcd217a12426e4f039ef763ff90738c808d38810c3e59323767`.
+Missing or changed metadata and image upgrades do not match this exception.
+Review image provenance and driver handling before updating the tuple.
+Other executables, identities and Falco rules retain their existing coverage.
+
+HOMEIT-538 correlated all five retained executions with successful browser
+requests and verified that this image's vendored `undetected_chromedriver`
+patches its bundled driver in place at startup. That explains its writable
+overlayfs executable. This exception is not an integrity check: malicious
+replacement of the driver matching every field would also be excluded from
+this rule. Live byte comparison remains tracked in HOMEIT-528.
+
+Before deployment, run `scripts/ci/validate-charts.sh` and compile the rendered
+custom rules with Falco 0.45.2 and container plugin 0.7.6. After an approved
+GitOps push, verify the reconciled `falco-rules` ConfigMap, sensor readiness
+and rule-loading logs, then correlate a normal FlareSolverr request with the
+absence of a new matching drop-and-execute event. Native rule compilation alone
+does not prove live event suppression.
+
 ## Custom alert rules
 
 Defined in `charts/monitor/templates/prometheus-rules.yaml`. These replace or supplement noisy defaults with homelab-appropriate thresholds and patience windows.

@@ -402,6 +402,16 @@ operators:
                 comps: [=, =]
                 values:
                   - [gitea, /app/gitea/gitea]
+              # HOMEIT-540: FlareSolverr patches its bundled driver at startup.
+              # image.tag is the config digest emitted by this containerd sensor;
+              # match it exactly so upgrades or missing metadata fail closed.
+              - name: flaresolverr_patched_chromedriver
+                fields: [k8s.ns.name, container.name, container.image.repository, container.image.tag, proc.exepath, proc.name, proc.pname, "proc.aname[2]", user.uid]
+                comps: [=, =, =, =, =, =, =, =, =]
+                values:
+                  - [prod-containarr, flaresolverr, ghcr.io/flaresolverr/flaresolverr,
+                     cd2872fa4a3e0bb10acee4063771adeba71feb8bf75311dd481a7a1ce3c32d36,
+                     /app/chromedriver, chromedriver, python, dumb-init, 1000]
               - name: ci_workloads
                 fields: [k8s.ns.name]
                 comps: [=]
