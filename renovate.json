@@ -5,6 +5,8 @@
   ],
   "prHourlyLimit": 5,
   "prConcurrentLimit": 10,
+  "automergeType": "pr",
+  "platformAutomerge": false,
   "customManagers": [
     {
       "customType": "regex",
@@ -67,12 +69,21 @@
       ]
     },
     {
-      "description": "Require review for every update; GitHub is a read-only mirror",
+      "description": "Require review unless an image update matches the minor/patch rule below",
       "matchDatasources": [
         "helm",
         "docker"
       ],
       "automerge": false
+    },
+    {
+      "description": "Merge container image minor and patch updates after CI passes",
+      "matchDatasources": ["docker"],
+      "matchManagers": ["helm-values", "woodpecker"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Docker images (minor and patch)",
+      "groupSlug": "dockerimages-minor-patch",
+      "automerge": true
     },
     {
       "description": "Replace latest tags with pinned versions",

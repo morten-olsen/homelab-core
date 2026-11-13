@@ -74,7 +74,18 @@ chart versions stored in values. The Istio gateway lookup uses
 coordinated. Image dependencies are not duplicated by custom regex managers.
 Woodpecker's repository cron owns the weekly Renovate cadence (Sunday 03:00 UTC).
 There is no second package-level schedule that could prevent that run from
-opening updates; updates still require review and are not auto-merged.
+opening updates. Container image minor and patch updates form a separate group
+and merge after CI passes on a subsequent Renovate run. Renovate performs PR
+merges itself (`platformAutomerge: false`) because Forgejo has no branch
+protections enforcing checks. Major updates, digest-only rebuilds, Helm charts
+(including OCI charts using the Docker datasource), and tools still require
+review. ArgoCD may deploy merged changes automatically; chart validation does not
+prove application runtime compatibility.
+
+Prefer published image version tags with digest pins. The November 2026 audit
+matched Pi-hole and the Pi-hole DNS backend's version tags to their existing
+registry digests, preserving image contents. CI runner images still use pinned
+`latest` tags because their registry publishes only moving and commit tags.
 
 `operators.flux` makes the existing `flux-system` installation updateable through
 the maintained [fluxcd-community `flux2` chart](https://fluxcd-community.github.io/helm-charts).

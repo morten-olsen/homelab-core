@@ -146,6 +146,8 @@ kind: Application
 
 ## Common Tasks
 
+Before changing Renovate, read [dependency update ownership](README.md#dependency-update-ownership).
+
 ### Adding a New Operator
 
 1. Add operator configuration to `charts/core/values.yaml`:
