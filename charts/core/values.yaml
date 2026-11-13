@@ -601,7 +601,7 @@ operators:
   # Chart 0.0.10 renders an invalid /:0.0.10 image; see docs/dns-operator.md.
   dns-operator:
     enabled: true
-    version: 0.0.8
+    version: 0.0.9
     namespace: falco
     repoURL: https://morten-olsen.github.io/homelab-dns-operator
     chart: dns-operator
