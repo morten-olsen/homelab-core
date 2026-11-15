@@ -799,7 +799,7 @@ operators:
 
   reloader:
     enabled: true
-    version: 2.2.19
+    version: 2.2.20
     namespace: reloader
     repoURL: https://stakater.github.io/stakater-charts
     chart: reloader
