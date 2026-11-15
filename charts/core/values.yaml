@@ -586,14 +586,14 @@ operators:
 
   mariadb-crds:
     enabled: true
-    version: 26.10.1
+    version: 26.10.2
     namespace: mariadb
     repoURL: https://helm.mariadb.com/mariadb-operator
     chart: mariadb-operator-crds
 
   mariadb-operator:
     enabled: true
-    version: 26.10.1
+    version: 26.10.2
     namespace: mariadb
     repoURL: https://helm.mariadb.com/mariadb-operator
     chart: mariadb-operator
