@@ -103,7 +103,7 @@ resources:
     subdomain: pihole
     image:
       repository: pihole/pihole
-      tag: 2026.10.1@sha256:30f803ad5dd60ff96cc0a63008a2e9271af481c1b0399a182192b2e91152c1f9
+      tag: 2026.11.0@sha256:66c798d79a95c2691f280329c3611dba1746117c61c9f331907ca35a06a52778
       pullPolicy: IfNotPresent
     storage:
       size: 1Gi
@@ -170,7 +170,7 @@ resources:
     # kubectl login, admin group only; the API server config is on the host.
     kubernetesClient:
       enabled: false
-    image: ghcr.io/goauthentik/server:2026.8.5
+    image: ghcr.io/goauthentik/server:2026.8.6
     tls:
       enabled: true
       secretName: wildcard-tls
@@ -193,7 +193,7 @@ resources:
     ui:
       image:
         repository: temporalio/ui
-        tag: 2.54.1
+        tag: 2.58.1
       resources:
         requests:
           cpu: 50m
@@ -225,7 +225,7 @@ resources:
       # Local-only plaintext staging; restic encrypts before writing to NFS.
       # local-path requests are not enforced disk quotas.
       storageSize: 20Gi
-      resticImage: restic/restic:0.18.1@sha256:39d9072fb5651c80d75c7a811612eb60b4c06b32ffe87c2e9f3c7222e1797e76
+      resticImage: restic/restic:0.20.0@sha256:93999df80d4ac6cb148e82d2ef1fe6a81996f17ff535e772723538211b31555a
       # Bound Go compression workers on the 20-core node, and leave memory
       # outside the soft Go heap target under the uploader's hard limit.
       gomaxprocs: 2
