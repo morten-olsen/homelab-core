@@ -127,7 +127,7 @@ operators:
   # Renovate updates the maintained chart, including controller images and CRDs.
   flux:
     enabled: true
-    version: 2.16.4
+    version: 2.20.0
     namespace: flux-system
     repoURL: https://fluxcd-community.github.io/helm-charts
     chart: flux2
