@@ -22,7 +22,7 @@ argocdSso:
 operators:
   argocd:
     enabled: true
-    version: 10.9.2
+    version: 10.18.2
     namespace: argocd
     repoURL: https://argoproj.github.io/argo-helm
     chart: argo-cd
